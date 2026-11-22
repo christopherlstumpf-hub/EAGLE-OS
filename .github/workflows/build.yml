@@ -1,11 +1,12 @@
 # Builds the USB installer in GitHub's cloud.
-# Run it from the repo's Actions tab ("Build USB installer" > Run workflow).
+# Runs on every update to main, or from the Actions tab ("Build USB installer" > Run workflow).
 # The finished eagle-os.iso appears on the repo's Releases page.
 name: Build USB installer
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags: ["v*"]
 
 permissions:
