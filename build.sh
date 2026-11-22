@@ -21,7 +21,7 @@ brand_bootloaders() {
   for bl in isolinux grub-pc; do
     [ -d "$src/$bl" ] || continue
     rm -rf "config/bootloaders/$bl"
-    cp -aL "$src/$bl" config/bootloaders/
+    cp -a "$src/$bl" config/bootloaders/   # keep links; live-build resolves them
   done
 
   # Splash pictures
@@ -30,7 +30,7 @@ brand_bootloaders() {
       */isolinux/*) cp config/branding/splash-640x480.png "$f" ;;
       *)            cp config/branding/splash-1920x1080.png "$f" ;;
     esac
-  done < <(find config/bootloaders -name 'splash.png')
+  done < <(find config/bootloaders -name 'splash.png' -type f)
 
   b64=$(base64 -w0 config/branding/splash-640x480.png)
   while IFS= read -r f; do
@@ -52,6 +52,7 @@ brand_bootloaders() {
     -e 's/^(set menu_color_normal=).*/\1light-gray\/black/'
 }
 brand_bootloaders
+echo "== EAGLE boot menu templates =="; find config/bootloaders \( -type f -o -type l \) | sort
 
 lb clean
 lb config
