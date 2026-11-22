@@ -5,8 +5,14 @@
     "OverrideFirstRunPage": "",
     "OverridePostUpdatePage": "",
     "Homepage": {
-      "URL": "https://www.google.com",
-      "StartPage": "previous-session"
+      "URL": "file:///usr/share/eagle/start.html",
+      "StartPage": "homepage"
+    },
+    "ExtensionSettings": {
+      "theme@eagle-os": {
+        "installation_mode": "force_installed",
+        "install_url": "file:///usr/share/eagle/eagle-theme.xpi"
+      }
     },
     "UserMessaging": {
       "WhatsNew": false,

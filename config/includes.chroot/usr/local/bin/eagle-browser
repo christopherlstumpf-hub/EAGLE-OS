@@ -1,0 +1,36 @@
+#!/bin/bash
+# Runs inside cage: applies the saved display settings, then starts Firefox.
+
+HOME_URL="file:///usr/share/eagle/start.html"
+KIOSK=0
+# shellcheck source=/dev/null
+[ -r /etc/eagle/eagle.conf ] && . /etc/eagle/eagle.conf
+
+CONF="$HOME/.config/eagle"
+# Saved by eagle-setup: OUTPUT, MODE (e.g. 1366x768@60.000000), SCALE (e.g. 1.25)
+if [ -r "$CONF/display" ]; then
+  # shellcheck source=/dev/null
+  . "$CONF/display"
+  if [ -n "${OUTPUT:-}" ]; then
+    randr=(wlr-randr --output "$OUTPUT")
+    [ -n "${MODE:-}" ] && randr+=(--mode "$MODE")
+    [ -n "${SCALE:-}" ] && randr+=(--scale "$SCALE")
+    "${randr[@]}" || true
+  fi
+fi
+
+export MOZ_ENABLE_WAYLAND=1
+
+# One fixed profile: EAGLE theme always, low-memory tuning on PCs with 4 GB RAM or less.
+PROFILE="$HOME/.eagle-profile"
+mkdir -p "$PROFILE"
+cp -f /etc/eagle/base-user.js "$PROFILE/user.js"
+mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+if [ "${mem_kb:-0}" -le 4194304 ]; then
+  cat /etc/eagle/lowmem-user.js >> "$PROFILE/user.js"
+fi
+
+args=(--no-remote --profile "$PROFILE")
+[ "$KIOSK" = "1" ] && args+=(--kiosk)
+
+exec firefox-esr "${args[@]}" "$HOME_URL"

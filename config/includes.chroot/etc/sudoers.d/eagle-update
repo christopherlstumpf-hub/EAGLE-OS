@@ -1,0 +1,2 @@
+# The EAGLE menu may run the updater, and nothing else, as root.
+kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-update

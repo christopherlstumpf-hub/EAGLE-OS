@@ -22,10 +22,15 @@ libgl1-mesa-dri
 mesa-vulkan-drivers
 mesa-va-drivers
 
-# Sound
+# Sound: generic kernel drivers (HD Audio, USB audio, HDMI) are built into the Debian kernel;
+# these add the sound server, device profiles, and firmware for newer Intel laptop audio.
 pipewire
 pipewire-pulse
+pipewire-alsa
 wireplumber
+alsa-utils
+alsa-ucm-conf
+firmware-sof-signed
 
 # Session plumbing
 dbus-user-session
@@ -42,3 +47,12 @@ unattended-upgrades
 # Older PCs: compressed RAM swap + video decode on older Intel graphics
 zram-tools
 i965-va-driver
+
+# EAGLE-OS look and setup screens
+plymouth
+whiptail
+wlr-randr
+fonts-dejavu-core
+
+# Updates screen (lets the kiosk user run only the EAGLE updater as root)
+sudo

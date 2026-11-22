@@ -1,0 +1,37 @@
+// EAGLE-OS startup screen: black, chrome logo, grey track with orange progress.
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+
+logo_img = Image("logo.png");
+max_w = sw * 0.6;
+if (logo_img.GetWidth() > max_w) {
+  logo_img = logo_img.Scale(max_w, logo_img.GetHeight() * max_w / logo_img.GetWidth());
+}
+logo = Sprite(logo_img);
+logo.SetX(sw / 2 - logo_img.GetWidth() / 2);
+logo.SetY(sh / 2 - logo_img.GetHeight() / 2);
+
+track_w = logo_img.GetWidth() * 0.5;
+bar_x = sw / 2 - track_w / 2;
+bar_y = sh / 2 + logo_img.GetHeight() / 2 + 24;
+
+track = Sprite(Image("grey.png").Scale(track_w, 4));
+track.SetX(bar_x);
+track.SetY(bar_y);
+
+orange_src = Image("orange.png");
+bar = Sprite(orange_src.Scale(1, 4));
+bar.SetX(bar_x);
+bar.SetY(bar_y);
+bar.SetZ(10);
+
+fun progress_cb(duration, progress) {
+  w = Math.Int(track_w * progress);
+  if (w < 1) w = 1;
+  bar.SetImage(orange_src.Scale(w, 4));
+}
+Plymouth.SetBootProgressFunction(progress_cb);

@@ -30,6 +30,8 @@ jobs:
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
           name: EAGLE ${{ github.ref_type == 'tag' && github.ref_name || format('build {0}', github.run_number) }}
-          files: out/eagle-os.iso
+          files: |
+            out/eagle-os.iso
+            out/build-info.txt
           body: |
-            Flash eagle-os.iso to a USB stick with balenaEtcher, boot the PC from it, and choose Install.
+            Flash eagle-os.iso to a USB stick or microSD card with balenaEtcher. Boot the PC from it and choose "Run EAGLE-OS" or "Install EAGLE-OS".

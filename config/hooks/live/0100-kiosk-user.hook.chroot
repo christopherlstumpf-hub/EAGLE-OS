@@ -1,5 +1,6 @@
 #!/bin/sh
-# Creates the locked "kiosk" account the browser runs as, and boots to greetd.
+# Creates the locked "kiosk" account the browser runs as, boots to greetd,
+# and installs the EAGLE-OS startup splash.
 set -e
 
 if ! id kiosk >/dev/null 2>&1; then
@@ -13,8 +14,13 @@ for group in video audio input render netdev; do
   fi
 done
 
-chmod 0755 /usr/local/bin/eagle-session
+chmod 0755 /usr/local/bin/eagle-session /usr/local/bin/eagle-browser /usr/local/bin/eagle-setup /usr/local/sbin/eagle-update
+chmod 0440 /etc/sudoers.d/eagle-update
 systemctl enable greetd.service
 systemctl enable NetworkManager.service
 systemctl enable zramswap.service
 systemctl set-default graphical.target
+
+# Startup splash: chrome EAGLE-OS on black
+plymouth-set-default-theme eagle
+update-initramfs -u -k all || true  # live-build also rebuilds it later

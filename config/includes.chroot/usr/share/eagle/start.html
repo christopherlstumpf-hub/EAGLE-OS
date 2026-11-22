@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>EAGLE-OS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --black:#000; --panel:#1b1b1b; --grey:#3a3a3a; --text:#d6d6d6; --dim:#8a8a8a; --orange:#ff7a00; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--black); color:var(--text);
+    font-family: "Noto Sans", "DejaVu Sans", sans-serif; }
+  main { min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:40px 20px; }
+  .logo { width:min(560px, 80vw); height:auto; }
+  .bar { width:min(280px, 40vw); height:4px; background:var(--orange); margin-top:-14px; }
+  #clock { color:var(--dim); font-size:15px; letter-spacing:.08em; }
+  form { width:min(640px, 90vw); display:flex; }
+  input[type=search] { flex:1; font-size:18px; padding:14px 18px; color:#fff; background:var(--panel);
+    border:2px solid var(--grey); border-right:none; border-radius:10px 0 0 10px; outline:none; }
+  input[type=search]:focus { border-color:var(--orange); }
+  button { font-size:16px; font-weight:700; padding:0 22px; border:none; border-radius:0 10px 10px 0;
+    background:var(--orange); color:#000; cursor:pointer; }
+  .tiles { display:grid; grid-template-columns:repeat(3, minmax(120px, 170px)); gap:14px; }
+  .tiles a { display:block; text-align:center; padding:18px 10px; border-radius:10px; text-decoration:none;
+    color:var(--text); background:var(--panel); border:1px solid var(--grey); font-size:15px; }
+  .tiles a:hover, .tiles a:focus { border-color:var(--orange); color:#fff; outline:none; }
+  .tip { color:var(--dim); font-size:13px; }
+  .tip b { color:var(--orange); font-weight:600; }
+  @media (max-width:520px) { .tiles { grid-template-columns:repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <img class="logo" src="logo.png" alt="EAGLE-OS">
+  <div class="bar"></div>
+  <div id="clock"></div>
+  <form action="https://www.google.com/search" method="get">
+    <input type="search" name="q" placeholder="Search the web" autofocus aria-label="Search the web">
+    <button type="submit">Search</button>
+  </form>
+  <nav class="tiles">
+    <a href="https://www.google.com">Google</a>
+    <a href="https://mail.google.com">Gmail</a>
+    <a href="https://www.youtube.com">YouTube</a>
+    <a href="https://maps.google.com">Maps</a>
+    <a href="https://news.google.com">News</a>
+    <a href="https://weather.com">Weather</a>
+  </nav>
+  <div class="tip">Close Firefox at any time for <b>Wi-Fi</b>, <b>Display</b>, <b>Sound</b>, <b>Updates</b>, <b>Restart</b> and <b>Shut down</b>.</div>
+</main>
+<script>
+  function tick() {
+    var d = new Date();
+    document.getElementById("clock").textContent =
+      d.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" }) + "  ·  " +
+      d.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+  }
+  tick(); setInterval(tick, 15000);
+</script>
+</body>
+</html>

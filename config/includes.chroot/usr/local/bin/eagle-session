@@ -1,34 +1,29 @@
 #!/bin/bash
-# The whole "desktop": optional Wi-Fi setup screen, then Firefox full screen.
-# greetd relaunches this script whenever it exits.
+# EAGLE-OS session: setup (first boot or no network) -> Firefox.
+# Closing Firefox opens the EAGLE menu (Wi-Fi, Display, Restart, Shut down).
 
-HOME_URL="https://www.google.com"
-KIOSK=0
-# shellcheck source=/dev/null
-[ -r /etc/eagle/eagle.conf ] && . /etc/eagle/eagle.conf
+CONF="$HOME/.config/eagle"
+mkdir -p "$CONF"
 
-export MOZ_ENABLE_WAYLAND=1
-# Old or unsupported graphics chips: fall back to software drawing instead of a black screen.
+# Old or unsupported graphics chips: draw in software instead of a black screen.
 export WLR_RENDERER_ALLOW_SOFTWARE=1
 
-# One fixed Firefox profile, tuned for low memory when the PC has 4 GB or less.
-PROFILE="$HOME/.eagle-profile"
-mkdir -p "$PROFILE"
-mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
-if [ "${mem_kb:-0}" -le 4194304 ]; then
-  cp -f /etc/eagle/lowmem-user.js "$PROFILE/user.js"
-else
-  rm -f "$PROFILE/user.js"
+setup_screen() {
+  cage -s -- foot --title "EAGLE-OS Setup" /usr/local/bin/eagle-setup "$@"
+}
+
+# First boot: make sure sound starts unmuted at a comfortable level.
+if [ ! -f "$CONF/setup-done" ]; then
+  wpctl set-mute @DEFAULT_AUDIO_SINK@ 0 2>/dev/null
+  wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.6 2>/dev/null
 fi
 
-# No network yet? Show a Wi-Fi picker first.
-if ! nm-online --quiet --timeout=20; then
-  cage -s -- foot --title "Connect to Wi-Fi" nmtui-connect
+if [ ! -f "$CONF/setup-done" ] || ! nm-online --quiet --timeout=15; then
+  setup_screen --first-run
 fi
 
-args=(--no-remote --profile "$PROFILE")
-if [ "$KIOSK" = "1" ]; then
-  args+=(--kiosk)
-fi
-
-exec cage -s -- firefox-esr "${args[@]}" "$HOME_URL"
+while true; do
+  cage -s -- /usr/local/bin/eagle-browser
+  # Firefox was closed (or crashed): show the EAGLE menu, then reopen Firefox.
+  setup_screen --menu
+done

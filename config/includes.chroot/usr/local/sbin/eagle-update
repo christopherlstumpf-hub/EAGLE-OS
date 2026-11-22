@@ -1,0 +1,47 @@
+#!/bin/bash
+# EAGLE-OS updater for the Debian 13 system underneath. Runs as root via sudo.
+#   eagle-update now        download and install all available updates
+#   eagle-update check      count available updates
+#   eagle-update auto-on    turn automatic updates on
+#   eagle-update auto-off   turn automatic updates off
+#   eagle-update status     print "auto=on|off live=yes|no last=<date>"
+set -u
+export DEBIAN_FRONTEND=noninteractive
+AUTO=/etc/apt/apt.conf.d/20auto-upgrades
+STAMP=/var/lib/eagle/last-update
+
+is_live() { [ -d /run/live/medium ]; }
+
+case "${1:-}" in
+  now)
+    mkdir -p /var/lib/eagle
+    echo "Checking Debian for updates..."
+    apt-get update || { echo; echo "Couldn't reach the update servers. Check the network."; exit 1; }
+    echo; echo "Installing updates..."
+    apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade || exit 1
+    apt-get -y autoremove --purge
+    apt-get clean
+    date '+%B %-d, %Y %-I:%M %p' > "$STAMP"
+    echo; echo "Updates installed."
+    if [ -f /run/reboot-required ]; then echo "Restart EAGLE-OS to finish."; exit 10; fi
+    ;;
+  check)
+    apt-get update -qq >/dev/null 2>&1 || { echo "offline"; exit 1; }
+    apt-get -s full-upgrade 2>/dev/null | grep -c '^Inst '
+    ;;
+  auto-on)
+    sed -i -e 's/^\(APT::Periodic::Update-Package-Lists\) .*/\1 "1";/' \
+           -e 's/^\(APT::Periodic::Unattended-Upgrade\) .*/\1 "1";/' "$AUTO"
+    ;;
+  auto-off)
+    sed -i -e 's/^\(APT::Periodic::Update-Package-Lists\) .*/\1 "0";/' \
+           -e 's/^\(APT::Periodic::Unattended-Upgrade\) .*/\1 "0";/' "$AUTO"
+    ;;
+  status)
+    if grep -q '^APT::Periodic::Unattended-Upgrade "1"' "$AUTO" 2>/dev/null; then a=on; else a=off; fi
+    if is_live; then l=yes; else l=no; fi
+    echo "auto=$a live=$l last=$(cat "$STAMP" 2>/dev/null || echo never)"
+    ;;
+  *)
+    echo "usage: eagle-update now|check|auto-on|auto-off|status" >&2; exit 2 ;;
+esac

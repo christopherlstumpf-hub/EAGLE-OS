@@ -1,0 +1,240 @@
+#!/bin/bash
+# EAGLE-OS setup and menu screen (runs in a full-screen terminal under cage).
+#   eagle-setup --first-run   welcome, Wi-Fi, display, sound, then start browsing
+#   eagle-setup --menu        shown when Firefox is closed: adds Updates / Restart / Shut down
+
+MODE_ARG="${1:---menu}"
+CONF="$HOME/.config/eagle"
+DISPLAY_FILE="$CONF/display"
+mkdir -p "$CONF"
+
+# Black / grey / orange ("brown" is EAGLE orange in the terminal palette).
+export NEWT_COLORS='
+root=lightgray,black
+border=brown,black
+window=lightgray,black
+shadow=black,black
+title=brown,black
+button=black,gray
+actbutton=black,brown
+compactbutton=lightgray,black
+listbox=lightgray,black
+actlistbox=black,brown
+sellistbox=brown,black
+actsellistbox=black,brown
+textbox=lightgray,black
+acttextbox=black,brown
+entry=white,gray
+disentry=gray,black
+checkbox=lightgray,black
+actcheckbox=black,brown
+label=lightgray,black
+helpline=brown,black
+roottext=brown,black
+'
+
+TITLE="EAGLE-OS"
+H=20; W=72
+
+net_status() {
+  local active
+  active=$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | grep -v ':loopback$' | head -n1 | cut -d: -f1)
+  if [ -n "$active" ]; then echo "Connected: $active"; else echo "Not connected"; fi
+}
+
+# ---------- Wi-Fi ----------
+wifi_setup() {
+  nmcli radio wifi on >/dev/null 2>&1
+  nmtui-connect
+}
+
+# ---------- Display ----------
+load_display() { OUTPUT=""; MODE=""; SCALE=""; [ -r "$DISPLAY_FILE" ] && . "$DISPLAY_FILE"; }
+save_display() { printf 'OUTPUT=%q\nMODE=%q\nSCALE=%q\n' "$OUTPUT" "$MODE" "$SCALE" > "$DISPLAY_FILE"; }
+
+pick_output() {
+  local outs=() items=() o
+  mapfile -t outs < <(wlr-randr 2>/dev/null | awk '/^[^ ]/ {print $1}')
+  if [ "${#outs[@]}" -eq 0 ]; then
+    whiptail --title "$TITLE · Display" --msgbox "No screen settings are available on this PC. It will use its default resolution." 9 $W
+    return 1
+  fi
+  if [ "${#outs[@]}" -eq 1 ]; then OUTPUT="${outs[0]}"; return 0; fi
+  for o in "${outs[@]}"; do items+=("$o" ""); done
+  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 8 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
+}
+
+pick_resolution() {
+  local items=() line mode tag current=""
+  while read -r line; do
+    mode="${line%% *}"; tag="${line#* }"
+    [ "$tag" = "current" ] && current="$mode"
+    [ "$tag" = "$mode" ] && tag=""
+    items+=("$mode" "$tag")
+  done < <(wlr-randr 2>/dev/null | awk -v o="$OUTPUT" '
+      /^[^ ]/ {cur=$1; next}
+      cur==o && /px,/ {
+        m=$1"@"$3; t=""
+        if ($0 ~ /current/) t="current"; else if ($0 ~ /preferred/) t="recommended"
+        if (!(m in seen)) {seen[m]=1; print (t=="" ? m : m" "t)}
+      }')
+  if [ "${#items[@]}" -eq 0 ]; then
+    whiptail --title "$TITLE · Display" --msgbox "This screen doesn't offer other resolutions." 8 $W
+    return
+  fi
+  local choice
+  choice=$(whiptail --title "$TITLE · Display" --menu "Choose a screen resolution:" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  wlr-randr --output "$OUTPUT" --mode "$choice" 2>/dev/null
+  if whiptail --title "$TITLE · Display" --yesno "Keep this resolution?" 8 $W; then
+    MODE="$choice"; save_display
+  elif [ -n "$current" ]; then
+    wlr-randr --output "$OUTPUT" --mode "$current" 2>/dev/null
+  fi
+}
+
+pick_scale() {
+  local choice
+  choice=$(whiptail --title "$TITLE · Display" --menu "Make text and buttons bigger or smaller:" $H $W 6 \
+    1    "100%  normal" \
+    1.25 "125%  larger" \
+    1.5  "150%  large" \
+    1.75 "175%  extra large" \
+    2    "200%  huge" 3>&1 1>&2 2>&3) || return
+  wlr-randr --output "$OUTPUT" --scale "$choice" 2>/dev/null
+  SCALE="$choice"; save_display
+}
+
+display_setup() {
+  load_display
+  pick_output || return
+  local choice
+  while true; do
+    choice=$(whiptail --title "$TITLE · Display" --menu "Display settings for $OUTPUT" $H $W 4 \
+      resolution "Screen resolution" \
+      size       "Text and button size" \
+      "back"     "Back" 3>&1 1>&2 2>&3) || return
+    case "$choice" in
+      resolution) pick_resolution ;;
+      size)       pick_scale ;;
+      *)          return ;;
+    esac
+  done
+}
+
+# ---------- Sound ----------
+sound_volume() {
+  wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{v=int($2*100+0.5); m=($0 ~ /MUTED/) ? " (muted)" : ""; print v "%" m}'
+}
+
+pick_output_device() {
+  local items=() id name
+  while IFS='|' read -r id name; do
+    items+=("$id" "$name")
+  done < <(wpctl status 2>/dev/null | awk '
+      /Audio/ {audio=1} /Video/ {audio=0}
+      audio && /Sinks:/ {s=1; next}
+      s && /(Sources|Filters|Streams):/ {s=0}
+      s && /[0-9]+\./ {
+        line=$0; gsub(/[│├└─*]/, "", line); sub(/\[vol:.*/, "", line)
+        match(line, /[0-9]+\./); id=substr(line, RSTART, RLENGTH-1)
+        name=substr(line, RSTART+RLENGTH); gsub(/^ +| +$/, "", name)
+        print id "|" name
+      }')
+  if [ "${#items[@]}" -eq 0 ]; then
+    whiptail --title "$TITLE · Sound" --msgbox "No speakers or headphones were found on this PC." 8 $W
+    return
+  fi
+  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 8 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  wpctl set-default "$id"
+}
+
+sound_menu() {
+  local choice
+  while true; do
+    choice=$(whiptail --title "$TITLE · Sound" --menu "Volume: $(sound_volume)" $H $W 7 \
+      up     "Volume up" \
+      down   "Volume down" \
+      mute   "Mute / unmute" \
+      output "Speakers, headphones or HDMI" \
+      test   "Play a test sound" \
+      "back" "Back" 3>&1 1>&2 2>&3) || return
+    case "$choice" in
+      up)     wpctl set-mute @DEFAULT_AUDIO_SINK@ 0; wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 10%+ ;;
+      down)   wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%- ;;
+      mute)   wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+      output) pick_output_device ;;
+      test)   pw-play /usr/share/sounds/alsa/Front_Center.wav 2>/dev/null \
+                || whiptail --title "$TITLE · Sound" --msgbox "Couldn't play the test sound." 8 $W ;;
+      *)      return ;;
+    esac
+  done
+}
+
+# ---------- Updates (Debian 13 underneath) ----------
+updates_menu() {
+  local st auto live last choice count rc
+  while true; do
+    st=$(sudo -n /usr/local/sbin/eagle-update status 2>/dev/null)
+    auto=$(echo "$st" | sed -n 's/.*auto=\([a-z]*\).*/\1/p')
+    live=$(echo "$st" | sed -n 's/.*live=\([a-z]*\).*/\1/p')
+    last="${st#*last=}"
+    if [ "$auto" = "on" ]; then toggle="Turn automatic updates OFF"; else toggle="Turn automatic updates ON"; fi
+    choice=$(whiptail --title "$TITLE · Updates" --menu \
+      "Automatic updates: ${auto:-unknown}\nLast installed from this menu: ${last:-never}" $H $W 5 \
+      check  "Check for updates" \
+      now    "Install updates now" \
+      auto   "$toggle" \
+      back   "Back" 3>&1 1>&2 2>&3) || return
+    case "$choice" in
+      check)
+        whiptail --title "$TITLE · Updates" --infobox "Checking Debian for updates..." 7 $W
+        count=$(sudo -n /usr/local/sbin/eagle-update check 2>/dev/null)
+        case "$count" in
+          offline|"") whiptail --title "$TITLE · Updates" --msgbox "Couldn't reach the update servers. Check Wi-Fi and try again." 8 $W ;;
+          0)          whiptail --title "$TITLE · Updates" --msgbox "EAGLE-OS is up to date." 8 $W ;;
+          *)          whiptail --title "$TITLE · Updates" --msgbox "$count updates are available. Choose \"Install updates now\"." 8 $W ;;
+        esac ;;
+      now)
+        if [ "$live" = "yes" ]; then
+          whiptail --title "$TITLE · Updates" --msgbox "EAGLE-OS is running straight from the USB stick or card, so updates would be lost at restart.\n\nInstall EAGLE-OS to keep it updated." 11 $W
+          continue
+        fi
+        clear
+        echo "EAGLE-OS updates"; echo "----------------"
+        sudo -n /usr/local/sbin/eagle-update now; rc=$?
+        echo
+        if [ "$rc" -eq 10 ]; then
+          if whiptail --title "$TITLE · Updates" --yesno "Updates installed. Restart now to finish?" 8 $W; then systemctl reboot; exit 0; fi
+        elif [ "$rc" -eq 0 ]; then
+          whiptail --title "$TITLE · Updates" --msgbox "Updates installed." 8 $W
+        else
+          whiptail --title "$TITLE · Updates" --msgbox "Updating didn't finish. Check the network and try again." 8 $W
+        fi ;;
+      auto)
+        if [ "$auto" = "on" ]; then sudo -n /usr/local/sbin/eagle-update auto-off; else sudo -n /usr/local/sbin/eagle-update auto-on; fi ;;
+      *) return ;;
+    esac
+  done
+}
+
+# ---------- Main ----------
+if [ "$MODE_ARG" = "--first-run" ]; then
+  whiptail --title "$TITLE" --msgbox "Welcome to EAGLE-OS.\n\nLet's get you online. Use the arrow keys and Enter.\n\nLater, close Firefox at any time to come back to this menu." 13 $W
+fi
+
+while true; do
+  items=(browse "Start browsing" wifi "Wi-Fi and network" display "Display and screen size" sound "Sound")
+  if [ "$MODE_ARG" = "--menu" ]; then
+    items+=(updates "Updates" restart "Restart" shutdown "Shut down")
+  fi
+  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 8 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
+  case "$choice" in
+    wifi)     wifi_setup ;;
+    display)  display_setup ;;
+    sound)    sound_menu ;;
+    updates)  updates_menu ;;
+    restart)  systemctl reboot; exit 0 ;;
+    shutdown) systemctl poweroff; exit 0 ;;
+    browse|*) touch "$CONF/setup-done"; exit 0 ;;
+  esac
+done

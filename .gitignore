@@ -5,3 +5,4 @@ chroot/
 binary/
 .build/
 *.iso
+config/bootloaders/

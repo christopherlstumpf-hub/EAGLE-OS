@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=EAGLE-OS
+Description=Chrome EAGLE-OS lettering on black with an orange progress bar
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/eagle
+ScriptFile=/usr/share/plymouth/themes/eagle/eagle.script
