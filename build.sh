@@ -48,7 +48,9 @@ mv -f live-image-amd64.hybrid.iso "$ROOT/out/$NAME.iso"
   echo "live-build: $(dpkg-query -W -f='${Version}' live-build)"
   echo "variant file: $(cat chroot/etc/eagle/variant 2>/dev/null || echo missing)"
   echo "zram: $(grep -E '^(ALGO|PERCENT)=' chroot/etc/default/zramswap 2>/dev/null | tr '\n' ' ')"
-  echo "ublock: $(ls -d chroot/usr/share/webext/ublock-origin* 2>/dev/null || echo no)"
+  # shellcheck disable=SC2016
+  echo "ublock: $(chroot chroot dpkg-query -W -f='${Version}' webext-ublock-origin-firefox 2>/dev/null || echo not installed)"
+  echo "ublock in Firefox: $(find chroot/usr/share/mozilla/extensions chroot/usr/lib/firefox-esr -maxdepth 3 -iname '*uBlock0*' 2>/dev/null | head -1)"
   echo; echo "== Boot menu labels =="
   grep -rhoE '(menu label|menuentry) [^{]*' binary/boot binary/isolinux 2>/dev/null | sort -u
 } > "$ROOT/out/$NAME-build-info.txt" 2>&1 || true
