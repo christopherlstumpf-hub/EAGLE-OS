@@ -1,0 +1,37 @@
+#!/bin/sh
+# EAGLE-OS boot menu: runs on the finished boot files, just before the ISO is made.
+# Black chrome splash, orange highlight, "Run EAGLE-OS" / "Install EAGLE-OS" labels.
+set -e
+
+# Binary hooks run inside binary/; find the art either way.
+if [ -d ../config/branding ]; then ART=../config/branding; else ART=config/branding; cd binary; fi
+
+echo "EAGLE boot menu: branding $(pwd)"
+
+# Splash pictures (GRUB menu and the old-BIOS menu)
+find . -name 'splash.png' -type f | while read -r f; do
+  case "$f" in
+    *isolinux*|*syslinux*) cp "$ART/splash-640x480.png" "$f" ;;
+    *)                     cp "$ART/splash-1920x1080.png" "$f" ;;
+  esac
+  echo "  splash: $f"
+done
+
+# Menu labels and colors in every boot menu file
+find . \( -path ./live -prune \) -o -type f \( -name '*.cfg' -o -name 'theme.txt' \) -print | while read -r f; do
+  sed -i -E \
+    -e 's/Live system \([^)]*\)/Run EAGLE-OS/g' \
+    -e 's/Live system/Run EAGLE-OS/g' \
+    -e "s/menuentry ([\"'])(Install|Start installer)([\"'])/menuentry \1Install EAGLE-OS (erases a drive)\3/" \
+    -e 's/(menu label \^?)(Install|Start installer)$/\1Install EAGLE-OS (erases a drive)/' \
+    -e 's/^([[:space:]]*menu color (sel|hotsel)[[:space:]]+[^[:space:]]+[[:space:]]+)[^[:space:]]+[[:space:]]+[^[:space:]]+/\1#ff000000 #ffff7a00/' \
+    -e 's/^([[:space:]]*menu color (unsel|title|tabmsg|timeout_msg|help)[[:space:]]+[^[:space:]]+[[:space:]]+)[^[:space:]]+/\1#ffd6d6d6/' \
+    -e 's/^([[:space:]]*selected_item_color[[:space:]]*=[[:space:]]*).*/\1"#ff7a00"/' \
+    -e 's/^([[:space:]]*item_color[[:space:]]*=[[:space:]]*).*/\1"#d6d6d6"/' \
+    -e 's/^([[:space:]]*set menu_color_highlight=).*/\1black\/brown/' \
+    -e 's/^([[:space:]]*set menu_color_normal=).*/\1light-gray\/black/' \
+    -e 's/^([[:space:]]*set color_highlight=).*/\1black\/brown/' \
+    -e 's/^([[:space:]]*set color_normal=).*/\1light-gray\/black/' \
+    "$f"
+done
+echo "EAGLE boot menu: done"
