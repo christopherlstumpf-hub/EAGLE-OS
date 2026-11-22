@@ -1,6 +1,8 @@
-# Builds the USB installer in GitHub's cloud.
+# Builds both EAGLE-OS USB installers in GitHub's cloud:
+#   eagle-os.iso       standard
+#   eagle-os-lite.iso  for 2-4 GB RAM and slow processors
 # Runs on every update to main, or from the Actions tab ("Build USB installer" > Run workflow).
-# The finished eagle-os.iso appears on the repo's Releases page.
+# The finished ISOs appear on the repo's Releases page.
 name: Build USB installer
 
 on:
@@ -16,22 +18,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [standard, lite]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build ISO in a Debian 13 container
+      - name: Build ${{ matrix.variant }} ISO in a Debian 13 container
         run: |
           docker run --rm --privileged \
             -v "$PWD":/build -w /build \
-            debian:trixie ./build.sh
+            debian:trixie ./build.sh ${{ matrix.variant }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eagle-${{ matrix.variant }}
+          path: out/*
+          compression-level: 0
+          retention-days: 3
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
 
       - name: Publish to Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
-          name: EAGLE ${{ github.ref_type == 'tag' && github.ref_name || format('build {0}', github.run_number) }}
-          files: |
-            out/eagle-os.iso
-            out/build-info.txt
+          name: EAGLE-OS ${{ github.ref_type == 'tag' && github.ref_name || format('build {0}', github.run_number) }}
+          target_commitish: ${{ github.sha }}
+          files: out/*
           body: |
-            Flash eagle-os.iso to a USB stick or microSD card with balenaEtcher. Boot the PC from it and choose "Run EAGLE-OS" or "Install EAGLE-OS".
+            **eagle-os.iso**: the standard EAGLE-OS.
+            **eagle-os-lite.iso**: EAGLE-OS Lite, for PCs with 2–4 GB of RAM and slower processors.
+
+            Flash either one to a USB stick or microSD card (8 GB+) with balenaEtcher. Boot the PC from it and choose "Run EAGLE-OS" or "Install EAGLE-OS".

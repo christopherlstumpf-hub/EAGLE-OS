@@ -1,0 +1,4 @@
+# EAGLE-OS Lite: bigger compressed swap with lz4, which is fastest on slow processors.
+ALGO=lz4
+PERCENT=75
+PRIORITY=100

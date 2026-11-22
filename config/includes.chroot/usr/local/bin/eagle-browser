@@ -21,13 +21,18 @@ fi
 
 export MOZ_ENABLE_WAYLAND=1
 
-# One fixed profile: EAGLE theme always, low-memory tuning on PCs with 4 GB RAM or less.
+# One fixed profile: EAGLE theme always; low-memory tuning on PCs with 4 GB RAM or less;
+# EAGLE-OS Lite always gets low-memory plus slow-processor tuning.
 PROFILE="$HOME/.eagle-profile"
 mkdir -p "$PROFILE"
 cp -f /etc/eagle/base-user.js "$PROFILE/user.js"
+VARIANT=$(cat /etc/eagle/variant 2>/dev/null || echo standard)
 mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
-if [ "${mem_kb:-0}" -le 4194304 ]; then
+if [ "$VARIANT" = "lite" ] || [ "${mem_kb:-0}" -le 4194304 ]; then
   cat /etc/eagle/lowmem-user.js >> "$PROFILE/user.js"
+fi
+if [ "$VARIANT" = "lite" ]; then
+  cat /etc/eagle/lite-user.js >> "$PROFILE/user.js"
 fi
 
 args=(--no-remote --profile "$PROFILE")
