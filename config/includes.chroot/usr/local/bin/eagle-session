@@ -1,16 +1,27 @@
 #!/bin/bash
-# EAGLE-OS session: setup (first boot or no network) -> Firefox.
-# Closing Firefox opens the EAGLE menu (Wi-Fi, Display, Restart, Shut down).
+# EAGLE-OS session: (installer if chosen at boot) -> setup (first boot or no network) -> Firefox.
+# The orange E toolbar button / start page buttons ask for a screen (Wi-Fi, Install, ...):
+# Firefox closes, that screen opens, then Firefox comes back.
+# Closing Firefox yourself opens the EAGLE menu.
 
 CONF="$HOME/.config/eagle"
+REQUEST="$CONF/request"
 mkdir -p "$CONF"
+rm -f "$REQUEST"
 
 # Old or unsupported graphics chips: draw in software instead of a black screen.
 export WLR_RENDERER_ALLOW_SOFTWARE=1
 
-setup_screen() {
-  cage -s -- foot --title "EAGLE-OS Setup" /usr/local/bin/eagle-setup "$@"
+screen() {
+  cage -s -- foot --title "EAGLE-OS" "$@"
 }
+
+# "Install EAGLE-OS (wipes a drive)" was chosen on the boot menu
+if grep -qw 'eagle.install=1' /proc/cmdline && [ ! -f /tmp/eagle-install-offered ]; then
+  touch /tmp/eagle-install-offered
+  screen sudo -n /usr/local/sbin/eagle-install
+  # If the install was cancelled, carry on into EAGLE-OS from the stick.
+fi
 
 # First boot: make sure sound starts unmuted at a comfortable level.
 if [ ! -f "$CONF/setup-done" ]; then
@@ -19,11 +30,16 @@ if [ ! -f "$CONF/setup-done" ]; then
 fi
 
 if [ ! -f "$CONF/setup-done" ] || ! nm-online --quiet --timeout=15; then
-  setup_screen --first-run
+  screen /usr/local/bin/eagle-setup --first-run
 fi
 
 while true; do
   cage -s -- /usr/local/bin/eagle-browser
-  # Firefox was closed (or crashed): show the EAGLE menu, then reopen Firefox.
-  setup_screen --menu
+  if [ -f "$REQUEST" ]; then
+    action=$(head -n1 "$REQUEST"); rm -f "$REQUEST"
+    screen /usr/local/bin/eagle-setup --action "$action"
+  else
+    # Firefox was closed (or crashed): show the EAGLE menu, then reopen Firefox.
+    screen /usr/local/bin/eagle-setup --menu
+  fi
 done

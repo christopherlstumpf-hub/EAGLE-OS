@@ -16,6 +16,7 @@ done
 
 chmod 0755 /usr/local/bin/eagle-session /usr/local/bin/eagle-browser /usr/local/bin/eagle-setup /usr/local/sbin/eagle-update
 chmod 0440 /etc/sudoers.d/eagle-update
+chmod 0755 /usr/local/sbin/eagle-install /usr/local/lib/eagle/eagle-native
 systemctl enable greetd.service
 systemctl enable NetworkManager.service
 systemctl enable zramswap.service

@@ -1,0 +1,193 @@
+#!/bin/bash
+# EAGLE-OS installer: wipes the drive you choose and installs EAGLE-OS on it.
+# Runs as root (via sudo) from the EAGLE menu, the toolbar button, the start page,
+# or the "Install EAGLE-OS (wipes a drive)" boot menu entry. Works only while
+# EAGLE-OS is running from the USB stick / card.
+#
+# Supports UEFI (GPT + EFI partition) and older BIOS PCs (MBR), and targets
+# internal drives, USB sticks and SD cards.
+set -uo pipefail
+
+# shellcheck source=/dev/null
+. /usr/local/lib/eagle/newt-colors.sh
+T="EAGLE-OS Installer"
+W=74
+LOG=/var/log/eagle-install.log
+TARGET=/mnt/eagle-target
+MEDIUM=/run/live/medium
+SQUASH="$MEDIUM/live/filesystem.squashfs"
+export DEBIAN_FRONTEND=noninteractive UCF_FORCE_CONFFOLD=1
+
+msg()  { whiptail --title "$T" --msgbox "$1" "${2:-12}" $W; }
+info() { whiptail --title "$T" --infobox "$1" 8 $W; echo "== $1" >> "$LOG"; }
+run()  { "$@" >> "$LOG" 2>&1; }
+
+cleanup() {
+  for m in "$TARGET/boot/efi" "$TARGET/run" "$TARGET/sys" "$TARGET/proc" "$TARGET/dev/pts" "$TARGET/dev" "$TARGET"; do
+    mountpoint -q "$m" && umount -lR "$m" 2>/dev/null
+  done
+}
+fail() {
+  cleanup
+  msg "The install didn't finish:\n\n$1\n\nThe last lines of the log:\n$(tail -n 5 "$LOG" 2>/dev/null)\n\nYou can try again, or keep using EAGLE-OS from the stick." 20
+  exit 1
+}
+
+# ---------- Checks ----------
+if [ "$(id -u)" -ne 0 ]; then echo "Run with sudo." >&2; exit 1; fi
+if [ ! -d "$MEDIUM" ] || [ ! -f "$SQUASH" ]; then
+  msg "EAGLE-OS is already installed on this PC.\n\nTo reinstall, start the PC from the EAGLE-OS USB stick or card and choose \"Install EAGLE-OS\"." 11
+  exit 1
+fi
+: > "$LOG"
+
+if [ -d /sys/firmware/efi ]; then FIRMWARE=uefi; else FIRMWARE=bios; fi
+
+# The stick/card EAGLE-OS is running from is never offered as a target.
+BOOT_SRC=$(findmnt -no SOURCE "$MEDIUM" 2>/dev/null)
+BOOT_DISK=$(lsblk -no PKNAME "$BOOT_SRC" 2>/dev/null | head -n1)
+[ -z "$BOOT_DISK" ] && BOOT_DISK=$(basename "$BOOT_SRC")
+
+kind_of() { # $1 = disk name
+  local name=$1 tran rota
+  tran=$(lsblk -dno TRAN "/dev/$name" 2>/dev/null | xargs)
+  rota=$(lsblk -dno ROTA "/dev/$name" 2>/dev/null | xargs)
+  case "$name" in mmcblk*) echo "SD card"; return ;; nvme*) echo "NVMe SSD"; return ;; esac
+  case "$tran" in
+    usb) echo "USB drive" ;;
+    *)   if [ "$rota" = "0" ]; then echo "SSD"; else echo "Hard drive"; fi ;;
+  esac
+}
+
+# ---------- 1. Pick the drive ----------
+items=()
+for name in $(lsblk -dno NAME -e 1,7,11 2>/dev/null); do
+  [ "$name" = "$BOOT_DISK" ] && continue
+  case "$name" in zram*|loop*|sr*|mmcblk*boot*|mmcblk*rpmb) continue ;; esac
+  bytes=$(lsblk -bdno SIZE "/dev/$name" 2>/dev/null | xargs)
+  [ "${bytes:-0}" -lt 7500000000 ] && continue
+  size=$(lsblk -dno SIZE "/dev/$name" | xargs)
+  model=$(lsblk -dno MODEL "/dev/$name" 2>/dev/null | xargs)
+  items+=("$name" "$(printf '%-7s %-12s %s' "$size" "$(kind_of "$name")" "${model:-}")")
+done
+
+if [ "${#items[@]}" -eq 0 ]; then
+  msg "No drive of 8 GB or more was found, apart from the stick or card EAGLE-OS is running from.\n\nTo install onto another USB stick or SD card, plug it in and choose Install again." 12
+  exit 1
+fi
+
+DISK_NAME=$(whiptail --title "$T" --menu "Install EAGLE-OS on which drive?\n\nThe drive you pick will be completely erased." 20 $W 8 "${items[@]}" 3>&1 1>&2 2>&3) || exit 1
+DISK="/dev/$DISK_NAME"
+DESC="$DISK  $(lsblk -dno SIZE "$DISK" | xargs)  $(kind_of "$DISK_NAME")  $(lsblk -dno MODEL "$DISK" 2>/dev/null | xargs)"
+
+# What's on it now (e.g. Windows) so the person knows what they're erasing
+CONTENTS=$(lsblk -lno NAME,SIZE,FSTYPE,LABEL "$DISK" 2>/dev/null | tail -n +2 | head -n 6 | awk '{printf "  %s %s %s %s\n", $1, $2, $3, $4}')
+[ -z "$CONTENTS" ] && CONTENTS="  (empty)"
+
+# ---------- 2. Confirm ----------
+ANSWER=$(whiptail --title "$T" --inputbox "Everything on this drive will be permanently erased:\n\n  $DESC\n\nIt currently holds:\n$CONTENTS\n\nType ERASE (in capitals) to wipe it and install EAGLE-OS." 22 $W 3>&1 1>&2 2>&3) || exit 1
+if [ "$ANSWER" != "ERASE" ]; then
+  msg "Nothing was changed. (You typed \"$ANSWER\", not ERASE.)" 8
+  exit 1
+fi
+
+# ---------- 3. Wipe and partition ----------
+info "Wiping $DISK..."
+swapoff -a 2>/dev/null
+lsblk -lnpo NAME,MOUNTPOINT "$DISK" | awk '$2 != "" {print $1}' | xargs -r umount -l 2>>"$LOG"
+for p in $(lsblk -lnpo NAME "$DISK" | tail -n +2); do run wipefs -a -f "$p"; done
+run wipefs -a -f "$DISK" || fail "Couldn't wipe $DISK."
+run dd if=/dev/zero of="$DISK" bs=1M count=16 conv=fsync
+SECTORS=$(blockdev --getsz "$DISK")
+[ -n "$SECTORS" ] && run dd if=/dev/zero of="$DISK" bs=512 seek=$((SECTORS - 2048)) count=2048 conv=fsync
+
+info "Creating partitions ($FIRMWARE)..."
+if [ "$FIRMWARE" = "uefi" ]; then
+  printf 'label: gpt\n,512M,U\n,,L\n' | run sfdisk --wipe always --wipe-partitions always "$DISK" || fail "Couldn't partition $DISK."
+else
+  printf 'label: dos\n,,L,*\n' | run sfdisk --wipe always --wipe-partitions always "$DISK" || fail "Couldn't partition $DISK."
+fi
+run blockdev --rereadpt "$DISK"; udevadm settle; sleep 1
+
+case "$DISK_NAME" in *[0-9]) P="${DISK}p" ;; *) P="$DISK" ;; esac
+if [ "$FIRMWARE" = "uefi" ]; then EFI_PART="${P}1"; ROOT_PART="${P}2"; else EFI_PART=""; ROOT_PART="${P}1"; fi
+
+info "Formatting..."
+if [ -n "$EFI_PART" ]; then run mkfs.vfat -F 32 -n EAGLE-EFI "$EFI_PART" || fail "Couldn't format $EFI_PART."; fi
+run mkfs.ext4 -F -L EAGLE-OS "$ROOT_PART" || fail "Couldn't format $ROOT_PART."
+
+# ---------- 4. Copy EAGLE-OS ----------
+mkdir -p "$TARGET"
+run mount "$ROOT_PART" "$TARGET" || fail "Couldn't mount $ROOT_PART."
+unsquashfs -percentage -f -d "$TARGET" "$SQUASH" 2>>"$LOG" \
+  | whiptail --title "$T" --gauge "Copying EAGLE-OS to $DISK... (a few minutes)" 8 $W 0
+[ -x "$TARGET/usr/local/bin/eagle-session" ] || fail "Copying the system failed."
+
+if ! ls "$TARGET"/boot/vmlinuz-* >/dev/null 2>&1; then
+  cp "$MEDIUM"/live/vmlinuz* "$TARGET/boot/" 2>>"$LOG" || fail "Couldn't copy the kernel."
+fi
+
+info "Setting up the new system..."
+if [ -n "$EFI_PART" ]; then
+  mkdir -p "$TARGET/boot/efi"
+  run mount "$EFI_PART" "$TARGET/boot/efi" || fail "Couldn't mount the EFI partition."
+fi
+{
+  echo "# EAGLE-OS"
+  echo "UUID=$(blkid -s UUID -o value "$ROOT_PART") / ext4 noatime,errors=remount-ro 0 1"
+  [ -n "$EFI_PART" ] && echo "UUID=$(blkid -s UUID -o value "$EFI_PART") /boot/efi vfat umask=0077 0 1"
+} > "$TARGET/etc/fstab"
+echo eagle > "$TARGET/etc/hostname"
+printf '127.0.0.1\tlocalhost\n127.0.1.1\teagle\n::1\tlocalhost ip6-localhost ip6-loopback\n' > "$TARGET/etc/hosts"
+
+# Bring the Wi-Fi networks and display settings from this session along
+if [ -d /etc/NetworkManager/system-connections ]; then
+  mkdir -p "$TARGET/etc/NetworkManager/system-connections"
+  cp -a /etc/NetworkManager/system-connections/. "$TARGET/etc/NetworkManager/system-connections/" 2>>"$LOG"
+  chmod 600 "$TARGET"/etc/NetworkManager/system-connections/* 2>/dev/null
+fi
+if [ -d /home/kiosk/.config/eagle ]; then
+  mkdir -p "$TARGET/home/kiosk/.config/eagle"
+  cp -a /home/kiosk/.config/eagle/display /home/kiosk/.config/eagle/setup-done "$TARGET/home/kiosk/.config/eagle/" 2>/dev/null
+  chroot "$TARGET" chown -R kiosk:kiosk /home/kiosk/.config 2>>"$LOG"
+fi
+
+# Startup splash, no boot menu
+cat > "$TARGET/etc/default/grub" <<'EOF'
+# EAGLE-OS
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=0
+GRUB_TIMEOUT_STYLE=hidden
+GRUB_DISTRIBUTOR="EAGLE-OS"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 vt.global_cursor_default=0"
+GRUB_CMDLINE_LINUX=""
+EOF
+
+# ---------- 5. Bootloader ----------
+info "Installing the bootloader..."
+for d in dev dev/pts proc run; do mkdir -p "$TARGET/$d"; run mount --bind "/$d" "$TARGET/$d"; done
+run mount --rbind /sys "$TARGET/sys"; run mount --make-rslave "$TARGET/sys"
+
+# Remove the "run from USB" parts
+run chroot "$TARGET" apt-get -y purge live-boot live-boot-initramfs-tools live-config live-config-systemd live-tools
+
+if [ "$FIRMWARE" = "uefi" ]; then
+  run chroot "$TARGET" sh -c 'dpkg -i /usr/share/eagle/debs/grub-efi-amd64_*.deb'
+  run chroot "$TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=EAGLE-OS --recheck \
+    || fail "Couldn't install the bootloader."
+  # Also the fallback location, so USB/SD installs and picky firmware still boot
+  run chroot "$TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --no-nvram
+else
+  echo "grub-pc grub-pc/install_devices multiselect $DISK" | run chroot "$TARGET" debconf-set-selections
+  run chroot "$TARGET" sh -c 'dpkg -i /usr/share/eagle/debs/grub-pc_*.deb'
+  run chroot "$TARGET" grub-install --target=i386-pc "$DISK" || fail "Couldn't install the bootloader."
+fi
+run chroot "$TARGET" update-initramfs -u -k all
+run chroot "$TARGET" update-grub || fail "Couldn't create the boot menu."
+
+info "Finishing..."
+sync
+cleanup
+
+msg "EAGLE-OS is installed on $DISK.\n\nRemove the USB stick or card, then press Enter to restart." 10
+systemctl reboot

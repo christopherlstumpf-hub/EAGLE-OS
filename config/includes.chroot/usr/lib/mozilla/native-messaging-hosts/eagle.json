@@ -1,0 +1,7 @@
+{
+  "name": "eagle",
+  "description": "EAGLE-OS menu helper",
+  "path": "/usr/local/lib/eagle/eagle-native",
+  "type": "stdio",
+  "allowed_extensions": ["menu@eagle-os"]
+}

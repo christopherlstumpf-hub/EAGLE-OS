@@ -1,37 +1,18 @@
 #!/bin/bash
 # EAGLE-OS setup and menu screen (runs in a full-screen terminal under cage).
 #   eagle-setup --first-run   welcome, Wi-Fi, display, sound, then start browsing
-#   eagle-setup --menu        shown when Firefox is closed: adds Updates / Restart / Shut down
+#   eagle-setup --menu        shown when Firefox is closed: adds Updates / Install / Restart / Shut down
+#   eagle-setup --action X    open one screen (wifi, display, sound, updates, install, menu) and return
 
 MODE_ARG="${1:---menu}"
+ACTION_ARG="${2:-}"
 CONF="$HOME/.config/eagle"
 DISPLAY_FILE="$CONF/display"
 mkdir -p "$CONF"
 
-# Black / grey / orange ("brown" is EAGLE orange in the terminal palette).
-export NEWT_COLORS='
-root=lightgray,black
-border=brown,black
-window=lightgray,black
-shadow=black,black
-title=brown,black
-button=black,gray
-actbutton=black,brown
-compactbutton=lightgray,black
-listbox=lightgray,black
-actlistbox=black,brown
-sellistbox=brown,black
-actsellistbox=black,brown
-textbox=lightgray,black
-acttextbox=black,brown
-entry=white,gray
-disentry=gray,black
-checkbox=lightgray,black
-actcheckbox=black,brown
-label=lightgray,black
-helpline=brown,black
-roottext=brown,black
-'
+# Black / grey / orange screens
+# shellcheck source=/dev/null
+. /usr/local/lib/eagle/newt-colors.sh
 
 TITLE="EAGLE-OS"
 H=20; W=72
@@ -61,7 +42,7 @@ pick_output() {
   fi
   if [ "${#outs[@]}" -eq 1 ]; then OUTPUT="${outs[0]}"; return 0; fi
   for o in "${outs[@]}"; do items+=("$o" ""); done
-  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 8 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
+  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 9 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
 }
 
 pick_resolution() {
@@ -144,7 +125,7 @@ pick_output_device() {
     whiptail --title "$TITLE · Sound" --msgbox "No speakers or headphones were found on this PC." 8 $W
     return
   fi
-  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 8 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 9 "${items[@]}" 3>&1 1>&2 2>&3) || return
   wpctl set-default "$id"
 }
 
@@ -217,22 +198,45 @@ updates_menu() {
   done
 }
 
+# ---------- Install ----------
+is_live() { [ -d /run/live/medium ]; }
+install_eagle() { sudo -n /usr/local/sbin/eagle-install; }
+
 # ---------- Main ----------
+if [ "$MODE_ARG" = "--action" ]; then
+  case "$ACTION_ARG" in
+    wifi)    wifi_setup ;;
+    display) display_setup ;;
+    sound)   sound_menu ;;
+    updates) updates_menu ;;
+    install) install_eagle ;;
+    *)       MODE_ARG="--menu" ;;
+  esac
+  [ "$MODE_ARG" = "--action" ] && exit 0
+fi
+
 if [ "$MODE_ARG" = "--first-run" ]; then
-  whiptail --title "$TITLE" --msgbox "Welcome to EAGLE-OS.\n\nLet's get you online. Use the arrow keys and Enter.\n\nLater, close Firefox at any time to come back to this menu." 13 $W
+  whiptail --title "$TITLE" --msgbox "Welcome to EAGLE-OS by Stumpf Technology.\n\nLet's get you online. Use the arrow keys and Enter.\n\nLater, the orange E button in Firefox's toolbar brings you back here." 13 $W
 fi
 
 while true; do
   items=(browse "Start browsing" wifi "Wi-Fi and network" display "Display and screen size" sound "Sound")
   if [ "$MODE_ARG" = "--menu" ]; then
-    items+=(updates "Updates" restart "Restart" shutdown "Shut down")
+    items+=(updates "Updates")
   fi
-  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 8 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
+  if is_live; then
+    items+=(install "Install EAGLE-OS on this PC (wipes a drive)")
+  fi
+  if [ "$MODE_ARG" = "--menu" ]; then
+    items+=(restart "Restart" shutdown "Shut down")
+  fi
+  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 9 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
   case "$choice" in
     wifi)     wifi_setup ;;
     display)  display_setup ;;
     sound)    sound_menu ;;
     updates)  updates_menu ;;
+    install)  install_eagle ;;
     restart)  systemctl reboot; exit 0 ;;
     shutdown) systemctl poweroff; exit 0 ;;
     browse|*) touch "$CONF/setup-done"; exit 0 ;;

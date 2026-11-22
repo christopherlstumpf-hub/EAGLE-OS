@@ -12,6 +12,11 @@
       "theme@eagle-os": {
         "installation_mode": "force_installed",
         "install_url": "file:///usr/share/eagle/eagle-theme.xpi"
+      },
+      "menu@eagle-os": {
+        "installation_mode": "force_installed",
+        "install_url": "file:///usr/share/eagle/eagle-menu.xpi",
+        "default_area": "navbar"
       }
     },
     "UserMessaging": {
@@ -19,6 +24,16 @@
       "ExtensionRecommendations": false,
       "FeatureRecommendations": false,
       "SkipOnboarding": true
+    },
+    "Preferences": {
+      "xpinstall.signatures.required": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "media.webrtc.camera.allow-pipewire": {
+        "Value": false,
+        "Status": "default"
+      }
     }
   }
 }

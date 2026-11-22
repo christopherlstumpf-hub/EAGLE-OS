@@ -24,6 +24,13 @@
     color:var(--text); background:var(--panel); border:1px solid var(--grey); font-size:15px; }
   .tiles a:hover, .tiles a:focus { border-color:var(--orange); color:#fff; outline:none; }
   .tip { color:var(--dim); font-size:13px; }
+  .byline { color:var(--dim); font-size:12px; letter-spacing:.04em; }
+  .install { display:none; width:min(640px, 90vw); box-sizing:border-box; padding:16px 20px; border-radius:12px;
+    background:#1b1b1b; border:2px solid var(--orange); align-items:center; gap:16px; }
+  html[data-live="yes"] .install { display:flex; }
+  .install p { margin:0; flex:1; font-size:14px; line-height:1.4; }
+  .install p b { color:#fff; }
+  .install button { border-radius:10px; padding:14px 20px; white-space:nowrap; }
   .tip b { color:var(--orange); font-weight:600; }
   @media (max-width:520px) { .tiles { grid-template-columns:repeat(2, 1fr); } }
 </style>
@@ -33,6 +40,10 @@
   <img class="logo" src="logo.png" alt="EAGLE-OS">
   <div class="bar"></div>
   <div id="clock"></div>
+  <div class="install">
+    <p><b>You're running EAGLE-OS from a USB stick or card.</b><br>Install it on this PC to keep your Wi-Fi, settings and updates.</p>
+    <button type="button" data-eagle-action="install">Install EAGLE-OS</button>
+  </div>
   <form action="https://www.google.com/search" method="get">
     <input type="search" name="q" placeholder="Search the web" autofocus aria-label="Search the web">
     <button type="submit">Search</button>
@@ -44,8 +55,12 @@
     <a href="https://maps.google.com">Maps</a>
     <a href="https://news.google.com">News</a>
     <a href="https://weather.com">Weather</a>
+    <a href="camera.html">Camera test</a>
+    <a href="#" data-eagle-action="wifi">Wi-Fi</a>
+    <a href="#" data-eagle-action="menu">EAGLE menu</a>
   </nav>
-  <div class="tip">Close Firefox at any time for <b>Wi-Fi</b>, <b>Display</b>, <b>Sound</b>, <b>Updates</b>, <b>Restart</b> and <b>Shut down</b>.</div>
+  <div class="tip">The orange <b>E</b> button in the toolbar opens <b>Wi-Fi</b>, <b>Display</b>, <b>Sound</b>, <b>Camera</b>, <b>Updates</b>, <b>Restart</b> and <b>Shut down</b>.</div>
+  <div class="byline">EAGLE-OS by Stumpf Technology</div>
 </main>
 <script>
   function tick() {

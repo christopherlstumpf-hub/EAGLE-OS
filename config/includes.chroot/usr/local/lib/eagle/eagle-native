@@ -1,0 +1,61 @@
+#!/usr/bin/python3
+"""EAGLE-OS menu helper for the Firefox toolbar button and start page.
+
+Firefox talks to it through native messaging (length-prefixed JSON on stdin/stdout).
+Actions that need a full-screen EAGLE screen (Wi-Fi, Display, Sound, Camera, Updates,
+Install, Menu) are handed to the EAGLE session: the request is written to a file and
+Firefox is closed; the session opens that screen, then reopens Firefox.
+"""
+import json, os, struct, subprocess, sys
+
+SCREENS = {"wifi", "display", "sound", "updates", "install", "menu"}
+REQUEST = os.path.expanduser("~/.config/eagle/request")
+
+
+def read_msg():
+    raw = sys.stdin.buffer.read(4)
+    if len(raw) < 4:
+        sys.exit(0)
+    (n,) = struct.unpack("@I", raw)
+    return json.loads(sys.stdin.buffer.read(n).decode("utf-8"))
+
+
+def send(obj):
+    data = json.dumps(obj).encode("utf-8")
+    sys.stdout.buffer.write(struct.pack("@I", len(data)) + data)
+    sys.stdout.buffer.flush()
+
+
+def main():
+    msg = read_msg()
+    action = str(msg.get("action", ""))
+    live = os.path.isdir("/run/live/medium")
+    if action == "status":
+        try:
+            variant = open("/etc/eagle/variant").read().strip()
+        except OSError:
+            variant = "standard"
+        send({"ok": True, "live": live, "variant": variant})
+    elif action in SCREENS:
+        if action == "install" and not live:
+            send({"ok": False, "error": "EAGLE-OS is already installed."})
+            return
+        os.makedirs(os.path.dirname(REQUEST), exist_ok=True)
+        with open(REQUEST, "w") as f:
+            f.write(action + "\n")
+        send({"ok": True})
+        sys.stdout.flush()
+        # Close Firefox; the EAGLE session opens the screen and reopens Firefox afterwards.
+        subprocess.Popen(["pkill", "-TERM", "-x", "firefox-esr"])
+    elif action == "restart":
+        send({"ok": True})
+        subprocess.Popen(["systemctl", "reboot"])
+    elif action == "shutdown":
+        send({"ok": True})
+        subprocess.Popen(["systemctl", "poweroff"])
+    else:
+        send({"ok": False, "error": "unknown action"})
+
+
+if __name__ == "__main__":
+    main()

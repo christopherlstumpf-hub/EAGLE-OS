@@ -1,2 +1,4 @@
-# The EAGLE menu may run the updater, and nothing else, as root.
+# The EAGLE menu may run the updater and the installer, and nothing else, as root.
+# (The installer only works while EAGLE-OS is running from the USB stick / card.)
 kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-update
+kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-install

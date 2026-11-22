@@ -1,0 +1,9 @@
+#!/bin/sh
+# Keeps the two GRUB setup packages on board so the EAGLE installer can set up
+# the right one (UEFI or BIOS) offline. Their tools (grub-*-bin) are already installed.
+set -e
+mkdir -p /usr/share/eagle/debs
+cd /usr/share/eagle/debs
+apt-get download grub-pc grub-efi-amd64
+ls -l /usr/share/eagle/debs
+chmod 0755 /usr/local/sbin/eagle-install

@@ -1,4 +1,5 @@
 # EAGLE-OS
+*by Stumpf Technology*
 
 An operating system that is only a web browser. It runs or installs from a USB stick or microSD card. It boots to a black screen with chrome EAGLE-OS lettering, sets up Wi-Fi, display and sound, then opens Firefox. The look is black, grey and orange throughout.
 
@@ -28,10 +29,21 @@ Both editions have the same setup, EAGLE menu, sound and updates. Lite shows **L
 2. Flash it to a USB stick or microSD card (8 GB or larger) with [balenaEtcher](https://etcher.balena.io).
 3. Plug it into the PC and power on. Tap **F12** (or F11, F9, Esc) to choose the stick or card.
    - Many PCs can boot from USB. Fewer can boot from a microSD slot; if yours can't, use a USB card reader.
-4. Pick one:
+4. Pick from the boot menu:
    - **Run EAGLE-OS**: runs straight from the stick or card without touching the PC. Nothing is saved after shutdown.
-   - **Install EAGLE-OS (erases a drive)**: you pick the drive, and the rest is automatic. To carry EAGLE-OS with you, with your Wi-Fi and settings saved, install it onto a second USB stick or microSD card.
+   - **Install EAGLE-OS (wipes a drive)**: opens the EAGLE installer right away (see below).
+   - **Advanced: Debian installer**: the standard Debian installer, as a fallback.
 5. Turn off **Secure Boot** in the BIOS if the stick won't start.
+
+## Installing (wipes a drive)
+You can start the EAGLE installer three ways: from the boot menu, with the orange **Install EAGLE-OS** button on the start page (shown while running from the stick), or from the orange **E** toolbar button.
+
+1. Pick the drive. It lists each one's size, type (SSD, hard drive, USB drive, SD card) and model, and never the stick you started from.
+2. Check what's on it now (for example Windows), then type **ERASE** to confirm.
+3. EAGLE-OS wipes the drive, partitions it for your PC (UEFI or older BIOS), copies itself and sets up the bootloader. Your Wi-Fi networks and display settings carry over.
+4. Remove the stick when asked. The PC restarts into EAGLE-OS.
+
+To carry EAGLE-OS with you, install it onto a second USB stick or microSD card.
 
 ## First start
 1. The EAGLE-OS splash appears: chrome letters on black with an orange progress bar.
@@ -41,12 +53,14 @@ Both editions have the same setup, EAGLE menu, sound and updates. Lite shows **L
 After that, EAGLE-OS goes straight to Firefox on every start.
 
 ## The EAGLE menu
-Close Firefox at any time to open the EAGLE menu:
+Click the orange **E** button in Firefox's toolbar, or close Firefox, to open the EAGLE menu:
 - **Start browsing**
 - **Wi-Fi and network**
 - **Display and screen size**: resolution and text/button size
 - **Sound**: volume, mute, choose speakers, headphones or HDMI, test sound
+- **Camera test**: live preview and a microphone level meter
 - **Updates**: check for updates, install them now, or turn automatic updates on or off
+- **Install EAGLE-OS on this PC**: shown while running from the stick or card
 - **Restart** / **Shut down**
 
 The power button also shuts the PC down.
@@ -55,6 +69,9 @@ The power button also shuts the PC down.
 EAGLE-OS runs on Debian 13. By default it installs Debian's security and regular updates automatically in the background when it's online. You can also update on demand from **Updates** in the EAGLE menu.
 
 If you're running straight from the stick or card (Run EAGLE-OS), updates are lost at restart. Install EAGLE-OS to keep it updated.
+
+## Camera
+USB webcams and most built-in laptop cameras (UVC) work in Firefox for video calls; sites ask before using it. Use **Camera test** to check it. Some very new laptops with Intel "IPU6" MIPI cameras aren't supported yet.
 
 ## Sound
 The standard sound drivers built into Linux cover most PCs: HD Audio, USB headsets and HDMI. Firmware for newer Intel laptop sound chips is also included.
