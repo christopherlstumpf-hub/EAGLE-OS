@@ -25,7 +25,7 @@ find . \( -path ./live -prune \) -o -type f \( -name '*.cfg' -o -name 'theme.txt
     -e 's/Live system \([^)]*\)/Run EAGLE-OS/g' \
     -e 's/Live system/Run EAGLE-OS/g' \
     -e "s/menuentry ([\"'])(Install|Start installer)([\"'])/menuentry \1Advanced: Debian installer\3/" \
-    -e 's/(menu label \^?)(Install|Start installer)$/\1Advanced: ^Debian installer/' \
+    -e 's/(menu label )\^?(Install|Start installer)$/\1Advanced: ^Debian installer/' \
     -e 's/menu label Start \^installer$/menu label Advanced: ^Debian installer/' \
     -e 's/^([[:space:]]*menu color (sel|hotsel)[[:space:]]+[^[:space:]]+[[:space:]]+)[^[:space:]]+[[:space:]]+[^[:space:]]+/\1#ff000000 #ffff7a00/' \
     -e 's/^([[:space:]]*menu color (unsel|title|tabmsg|timeout_msg|help)[[:space:]]+[^[:space:]]+[[:space:]]+)[^[:space:]]+/\1#ffd6d6d6/' \
