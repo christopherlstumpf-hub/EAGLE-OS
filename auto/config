@@ -1,0 +1,16 @@
+#!/bin/sh
+# live-build configuration for EAGLE
+set -e
+
+lb config noauto \
+  --distribution trixie \
+  --architectures amd64 \
+  --archive-areas "main contrib non-free non-free-firmware" \
+  --binary-images iso-hybrid \
+  --debian-installer live \
+  --debian-installer-gui false \
+  --bootappend-live "boot=live components quiet splash live-config.noautologin hostname=eagle" \
+  --iso-application "EAGLE" \
+  --iso-volume "EAGLE" \
+  --memtest none \
+  "${@}"

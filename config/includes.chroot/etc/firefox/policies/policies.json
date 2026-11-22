@@ -1,0 +1,18 @@
+{
+  "policies": {
+    "DontCheckDefaultBrowser": true,
+    "DisableProfileImport": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "Homepage": {
+      "URL": "https://www.google.com",
+      "StartPage": "previous-session"
+    },
+    "UserMessaging": {
+      "WhatsNew": false,
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "SkipOnboarding": true
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Compressed swap in RAM: makes 2 GB machines behave closer to 3 GB.
+ALGO=zstd
+PERCENT=60
+PRIORITY=100

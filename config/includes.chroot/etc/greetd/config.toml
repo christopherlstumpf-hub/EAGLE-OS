@@ -1,0 +1,7 @@
+# greetd starts the browser session as "kiosk" at boot and restarts it if it exits.
+[terminal]
+vt = 7
+
+[default_session]
+command = "/usr/local/bin/eagle-session"
+user = "kiosk"

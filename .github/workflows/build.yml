@@ -1,0 +1,34 @@
+# Builds the USB installer in GitHub's cloud.
+# Run it from the repo's Actions tab ("Build USB installer" > Run workflow).
+# The finished eagle-os.iso appears on the repo's Releases page.
+name: Build USB installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ISO in a Debian 13 container
+        run: |
+          docker run --rm --privileged \
+            -v "$PWD":/build -w /build \
+            debian:trixie ./build.sh
+
+      - name: Publish to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+          name: EAGLE ${{ github.ref_type == 'tag' && github.ref_name || format('build {0}', github.run_number) }}
+          files: out/eagle-os.iso
+          body: |
+            Flash eagle-os.iso to a USB stick with balenaEtcher, boot the PC from it, and choose Install.

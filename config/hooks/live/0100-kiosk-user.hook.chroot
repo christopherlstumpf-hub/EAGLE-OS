@@ -1,0 +1,20 @@
+#!/bin/sh
+# Creates the locked "kiosk" account the browser runs as, and boots to greetd.
+set -e
+
+if ! id kiosk >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash kiosk
+fi
+passwd --lock kiosk
+
+for group in video audio input render netdev; do
+  if getent group "$group" >/dev/null; then
+    usermod -aG "$group" kiosk
+  fi
+done
+
+chmod 0755 /usr/local/bin/eagle-session
+systemctl enable greetd.service
+systemctl enable NetworkManager.service
+systemctl enable zramswap.service
+systemctl set-default graphical.target

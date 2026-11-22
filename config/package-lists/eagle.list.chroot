@@ -1,0 +1,44 @@
+# The browser
+firefox-esr
+
+# Login + single-app display (Wayland kiosk compositor)
+greetd
+cage
+xwayland
+foot
+
+# Networking (Wi-Fi setup screen uses nmtui)
+network-manager
+wpasupplicant
+
+# Hardware support: firmware for common Wi-Fi and graphics chips
+firmware-linux
+firmware-linux-nonfree
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-brcm80211
+libgl1-mesa-dri
+mesa-vulkan-drivers
+mesa-va-drivers
+
+# Sound
+pipewire
+pipewire-pulse
+wireplumber
+
+# Session plumbing
+dbus-user-session
+systemd-timesyncd
+ca-certificates
+
+# Fonts
+fonts-noto-core
+fonts-noto-color-emoji
+
+# Keep itself patched automatically
+unattended-upgrades
+
+# Older PCs: compressed RAM swap + video decode on older Intel graphics
+zram-tools
+i965-va-driver
