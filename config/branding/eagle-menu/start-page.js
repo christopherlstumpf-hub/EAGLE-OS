@@ -121,3 +121,22 @@ async function renderSecurity() {
 }
 renderSecurity();
 setInterval(renderSecurity, 5 * 60 * 1000);
+
+// ---------- Screensaver summary ----------
+(async () => {
+  const NAMES = { beach: "Beach", mountains: "Mountains", winter: "Winter", summer: "Summer", fall: "Fall", spring: "Spring" };
+  const m = new Date().getMonth();
+  const season = m >= 2 && m <= 4 ? "spring" : m >= 5 && m <= 7 ? "summer" : m >= 8 && m <= 10 ? "fall" : "winter";
+  let s = { timeoutMin: 0, saverMin: 10, saverTheme: "season" };
+  try { s = { ...s, ...(await browser.storage.local.get(s)) }; } catch (e) { /* defaults */ }
+  const theme = s.saverTheme === "season" ? season : (s.saverTheme === "rotate" ? "mountains" : s.saverTheme);
+  document.getElementById("saver-thumb").style.backgroundImage = `url("scenes/thumbs/${theme}.jpg")`;
+  const pics = s.saverTheme === "season" ? `Current season (${NAMES[season]})` : s.saverTheme === "rotate" ? "Rotate all" : NAMES[s.saverTheme];
+  const lines = document.getElementById("saver-lines");
+  lines.innerHTML = "";
+  for (const t of [
+    "Pictures: " + pics,
+    "Starts after: " + (s.saverMin ? `${s.saverMin} min` : "off"),
+    "Return to start page: " + (s.timeoutMin ? `${s.timeoutMin} min` : "off"),
+  ]) { const d = document.createElement("div"); d.textContent = t; lines.appendChild(d); }
+})();

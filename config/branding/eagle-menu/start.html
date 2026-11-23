@@ -64,6 +64,10 @@
   .dot.ok { background:var(--green); } .dot.warn { background:var(--orange); } .dot.bad { background:var(--red); }
   .sec-lines { font-size:13px; color:var(--dim); line-height:1.6; }
   .sec-btn { margin-top:12px; width:100%; border-radius:10px; padding:10px 14px; font-size:14px; }
+  .link-btn { display:block; text-align:center; text-decoration:none; font-weight:700; background:var(--grey); color:#fff; }
+  .link-btn:hover, .link-btn:focus { background:var(--orange); color:#000; outline:none; }
+  .saver-row { display:flex; gap:12px; align-items:center; margin-top:10px; }
+  .saver-thumb { width:96px; aspect-ratio:16/9; border-radius:8px; background-size:cover; background-position:center; flex:none; border:1px solid var(--grey); }
 </style>
 </head>
 <body>
@@ -90,7 +94,7 @@
     <a href="#" data-eagle-action="wifi">Wi-Fi</a>
     <a href="#" data-eagle-action="menu">EAGLE menu</a>
   </nav>
-  <div class="tip">The orange <b>E</b> button in the toolbar opens <b>Wi-Fi</b>, <b>Display</b>, <b>Sound</b>, <b>Date and time</b>, <b>Camera</b>, <b>Security</b>, <b>Updates</b>, <b>Restart</b> and <b>Shut down</b>.</div>
+  <div class="tip">The orange <b>E</b> button in the toolbar opens <b>Wi-Fi</b>, <b>Display</b>, <b>Sound</b>, <b>Date and time</b>, <b>Screensaver</b>, <b>Camera</b>, <b>Security</b>, <b>Updates</b>, <b>Restart</b> and <b>Shut down</b>.</div>
   <div class="byline">EAGLE-OS by Stumpf Technology</div>
 </main>
 
@@ -114,7 +118,17 @@
     <div class="sec-lines" id="sec-lines"></div>
     <button type="button" class="sec-btn" data-eagle-action="security">Open Security</button>
   </section>
+
+  <section class="card" aria-label="Screensaver">
+    <h2>Screensaver</h2>
+    <div class="saver-row">
+      <div class="saver-thumb" id="saver-thumb"></div>
+      <div class="sec-lines" id="saver-lines"></div>
+    </div>
+    <a class="sec-btn link-btn" href="settings.html">Timeout and screensaver</a>
+  </section>
 </aside>
+<script src="activity.js"></script>
 <script src="start-page.js"></script>
 </body>
 </html>

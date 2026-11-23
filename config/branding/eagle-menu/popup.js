@@ -8,6 +8,8 @@ for (const b of document.querySelectorAll("button[data-action]")) {
     const action = b.dataset.action;
     if (action === "camera") {
       await browser.tabs.create({ url: browser.runtime.getURL("camera.html") });
+    } else if (action === "screensaver") {
+      await browser.tabs.create({ url: browser.runtime.getURL("settings.html") });
     } else {
       await browser.runtime.sendNativeMessage("eagle", { action }).catch(() => {});
     }

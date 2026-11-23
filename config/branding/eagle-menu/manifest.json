@@ -1,15 +1,17 @@
 {
   "manifest_version": 2,
   "name": "EAGLE-OS menu",
-  "version": "1.1",
-  "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Camera, Disks, Updates, Install, Restart, Shut down",
+  "version": "1.2",
+  "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Date and time, Camera, Security, Disks, Updates, screen timeout and screensaver",
   "browser_specific_settings": {
     "gecko": {
       "id": "menu@eagle-os"
     }
   },
   "permissions": [
-    "nativeMessaging"
+    "nativeMessaging",
+    "storage",
+    "tabs"
   ],
   "icons": {
     "64": "icon-64.png",
@@ -28,5 +30,17 @@
     "scripts": [
       "background.js"
     ]
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "activity.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
 }
