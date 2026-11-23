@@ -1,0 +1,13 @@
+[Unit]
+Description=EAGLE-OS: FaceTime HD camera firmware (Macs)
+ConditionPathExists=!/lib/firmware/facetimehd/firmware.bin
+ConditionPathExists=/sys/class/dmi/id/sys_vendor
+After=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/eagle-facetime-firmware
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

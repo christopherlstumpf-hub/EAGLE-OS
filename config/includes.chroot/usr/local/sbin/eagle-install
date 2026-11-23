@@ -171,6 +171,19 @@ if [ -d /home/kiosk/.config/eagle ]; then
   chroot "$TARGET" chown -R kiosk:kiosk /home/kiosk/.config 2>>"$LOG"
 fi
 
+# Macs: keep the camera firmware, and keep the kernel the Mac Wi-Fi/camera drivers were built for
+if grep -q "Apple" /sys/class/dmi/id/sys_vendor 2>/dev/null; then
+  if [ -s /lib/firmware/facetimehd/firmware.bin ]; then
+    mkdir -p "$TARGET/lib/firmware/facetimehd"
+    cp -a /lib/firmware/facetimehd/. "$TARGET/lib/firmware/facetimehd/" 2>>"$LOG"
+  fi
+  # shellcheck disable=SC2016
+  KPKGS=$(chroot "$TARGET" dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'linux-image-*' 2>/dev/null | awk '$1 == "ii" {printf "%s ", $2}')
+  # shellcheck disable=SC2086
+  chroot "$TARGET" apt-mark hold $KPKGS >>"$LOG" 2>&1
+  echo "Mac: kernel held ($KPKGS)" >> "$LOG"
+fi
+
 # Startup options that this PC needed from the stick (safe graphics, Legacy-mode fixes) carry over
 KEEP=""
 for opt in nomodeset noapic edd=off eagle.safegfx=1; do

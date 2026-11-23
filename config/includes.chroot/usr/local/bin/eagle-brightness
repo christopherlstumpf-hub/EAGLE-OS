@@ -1,0 +1,18 @@
+#!/bin/sh
+# EAGLE-OS brightness keys: eagle-brightness up|down  (run by triggerhappy)
+# Only on Macs: on other PCs the firmware already changes the brightness for these keys.
+grep -q "Apple" /sys/class/dmi/id/sys_vendor 2>/dev/null || exit 0
+BL=""
+for name in gmux_backlight apple_backlight intel_backlight acpi_video0; do
+  [ -w "/sys/class/backlight/$name/brightness" ] && { BL=/sys/class/backlight/$name; break; }
+done
+[ -n "$BL" ] || for d in /sys/class/backlight/*; do [ -w "$d/brightness" ] && { BL=$d; break; }; done
+[ -n "$BL" ] || exit 1
+max=$(cat "$BL/max_brightness"); cur=$(cat "$BL/brightness")
+step=$((max * 6 / 100)); [ "$step" -ge 1 ] || step=1
+case "$1" in
+  up)   new=$((cur + step)); [ "$new" -le "$max" ] || new=$max ;;
+  down) new=$((cur - step)); [ "$new" -ge "$step" ] || new=$step ;;   # never fully dark
+  *)    exit 2 ;;
+esac
+echo "$new" > "$BL/brightness"

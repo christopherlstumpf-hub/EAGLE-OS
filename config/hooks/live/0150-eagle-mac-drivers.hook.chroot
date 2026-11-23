@@ -1,0 +1,52 @@
+#!/bin/sh
+# Mac support (MacBook Air / Pro, about 2010-2017):
+#  - Broadcom Wi-Fi (BCM4360 and friends) via the "wl" driver from broadcom-sta-dkms
+#  - FaceTime HD camera via the facetimehd driver (its firmware is fetched from Apple on the Mac)
+# Both are built here for the EAGLE kernel; the compilers are removed again afterwards.
+# A failure here never stops the build: the result is written to mac-drivers.txt.
+set -u
+export DEBIAN_FRONTEND=noninteractive
+FACETIMEHD_COMMIT=4159eef064e4170cbd94fd6c633cbd04bf589c4d
+KVER=$(find /lib/modules -mindepth 1 -maxdepth 1 -printf '%f\n' | sort -V | tail -1)
+EXTRA=/lib/modules/$KVER/extra
+REPORT=/usr/share/eagle/mac-drivers.txt
+mkdir -p "$EXTRA" /usr/share/eagle
+echo "kernel: $KVER" > "$REPORT"
+
+dpkg-query -W -f='${Package}\n' | sort > /tmp/pkgs-before
+apt-get install -y --no-install-recommends "linux-headers-$KVER" build-essential dkms
+
+# --- Broadcom Wi-Fi (wl) ---
+apt-get install -y --no-install-recommends broadcom-sta-dkms
+BVER=$(dpkg-query -W -f='${Version}' broadcom-sta-dkms 2>/dev/null | sed 's/-[^-]*$//')
+dkms install -m broadcom-sta -v "$BVER" -k "$KVER"
+WL=$(find "/lib/modules/$KVER" -path "$EXTRA" -prune -o -name 'wl.ko*' -print | head -1)
+if [ -n "$WL" ]; then
+  cp "$WL" "$EXTRA/"
+  echo "broadcom wl: ok ($BVER, $(basename "$WL"))" >> "$REPORT"
+else
+  echo "broadcom wl: FAILED" >> "$REPORT"
+fi
+
+# --- FaceTime HD camera ---
+SRC=/tmp/facetimehd
+mkdir -p "$SRC"
+if curl -fsSL "https://github.com/patjak/facetimehd/archive/$FACETIMEHD_COMMIT.tar.gz" | tar -xz -C "$SRC" --strip-components=1 \
+   && make -C "/lib/modules/$KVER/build" M="$SRC" modules >/tmp/facetimehd-build.log 2>&1 \
+   && cp "$SRC/facetimehd.ko" "$EXTRA/"; then
+  echo "facetimehd: ok (${FACETIMEHD_COMMIT%"${FACETIMEHD_COMMIT#???????}"})" >> "$REPORT"
+else
+  echo "facetimehd: FAILED" >> "$REPORT"; tail -20 /tmp/facetimehd-build.log >> "$REPORT" 2>/dev/null
+fi
+rm -rf "$SRC" /tmp/facetimehd-build.log
+
+# --- Remove the build tools again (the built drivers stay in $EXTRA) ---
+dpkg-query -W -f='${Package}\n' | sort > /tmp/pkgs-after
+NEW=$(comm -13 /tmp/pkgs-before /tmp/pkgs-after)
+# shellcheck disable=SC2086
+[ -n "$NEW" ] && apt-get purge -y $NEW
+rm -f /tmp/pkgs-before /tmp/pkgs-after
+depmod -a "$KVER"
+echo "drivers in image: $(find "$EXTRA" -type f -printf '%f ')" >> "$REPORT"
+cat "$REPORT"
+exit 0

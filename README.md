@@ -51,6 +51,16 @@ If the laptop won't start EAGLE-OS after installing: in the BIOS setup, go to **
 
 If you do start in Legacy mode, EAGLE-OS adds the startup fixes those laptops need. If the screen still stays black, choose **Run EAGLE-OS (safe graphics)**.
 
+## Mac (Intel MacBook Air / MacBook Pro, about 2010–2017)
+
+1. Plug in the EAGLE stick, turn the Mac on and **hold the Option (⌥) key** until the startup disks appear.
+2. Pick **EFI Boot**. Use the standard edition on Macs with 4 GB or more.
+3. Wi-Fi uses the Broadcom "wl" driver built into EAGLE; it shows up in the Wi-Fi screen as usual.
+4. The FaceTime HD camera needs Apple's camera firmware, which can't be shipped on the stick. Once the Mac is online, EAGLE downloads it from Apple (about 18 MB) and the camera turns on a minute or two later. When running from the stick this happens on every start.
+5. The volume keys (F10–F12) and the brightness keys (F1/F2) work.
+
+**Installing on a Mac erases macOS** if you pick the Mac's internal drive. On an installed Mac, EAGLE keeps the kernel the Wi-Fi and camera drivers were built for, so Debian updates don't break them. Not yet tested on a real Mac; Macs with the T2 security chip (2018 and later) and Apple-silicon Macs are not supported.
+
 ## Installing (wipes a drive)
 You can start the EAGLE installer three ways: from the boot menu, with the orange **Install EAGLE-OS** button on the start page (shown while running from the stick), or from the orange **E** toolbar button.
 

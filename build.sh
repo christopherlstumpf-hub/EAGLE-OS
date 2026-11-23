@@ -63,6 +63,7 @@ mv -f live-image-amd64.hybrid.iso "$ROOT/out/$NAME.iso"
   echo "ublock in Firefox: $(find chroot/usr/share/mozilla/extensions chroot/usr/lib/firefox-esr -maxdepth 3 -iname '*uBlock0*' 2>/dev/null | head -1)"
   echo "installer packages: $(find chroot/usr/share/eagle/debs -name '*.deb' -printf '%f ' 2>/dev/null)"
   echo "toolbar add-on: $(ls chroot/usr/share/eagle/eagle-menu.xpi 2>/dev/null || echo missing)"
+  echo; echo "== Mac drivers =="; cat chroot/usr/share/eagle/mac-drivers.txt 2>/dev/null || echo "missing"
   echo "unsquashfs: $(ls chroot/usr/bin/unsquashfs 2>/dev/null || echo missing)"
   echo; echo "== Boot menu labels =="
   grep -rhoE '(menu label|menuentry) [^{]*' binary/boot binary/isolinux 2>/dev/null | sort -u

@@ -1,0 +1,35 @@
+#!/bin/bash
+# EAGLE-OS: fetch the FaceTime HD camera firmware from Apple (Macs only).
+# Apple's firmware can't be shipped on the EAGLE stick, so the Mac downloads it
+# (about 18 MB) from Apple's update server once it is online, then turns the camera on.
+FW=/lib/firmware/facetimehd/firmware.bin
+SRC=/usr/share/eagle/facetimehd-firmware
+# Is there a FaceTime HD camera (Broadcom 14e4:1570)?
+found=0
+for d in /sys/bus/pci/devices/*; do
+  [ "$(cat "$d/vendor")" = 0x14e4 ] && [ "$(cat "$d/device")" = 0x1570 ] && found=1
+done
+[ "$found" = 1 ] || { echo "no FaceTime HD camera"; exit 0; }
+[ -s "$FW" ] && { echo "firmware already present"; exit 0; }
+
+# Wait for the internet (Wi-Fi may be set up later in the EAGLE setup screens): up to 2 hours
+for _ in $(seq 1 360); do
+  curl -fsI --max-time 10 https://updates.cdn-apple.com/ >/dev/null 2>&1 && break
+  sleep 20
+done
+
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+cp -a "$SRC/." "$WORK/"
+cd "$WORK" || exit 1
+for attempt in 1 2 3; do
+  if make >/dev/null 2>&1 && [ -s firmware.bin ]; then
+    install -Dm644 firmware.bin "$FW"
+    install -m644 ./*_01XX.dat /lib/firmware/facetimehd/ 2>/dev/null
+    echo "camera firmware installed"
+    modprobe -r facetimehd 2>/dev/null; modprobe facetimehd
+    exit 0
+  fi
+  echo "download attempt $attempt failed"; make clean >/dev/null 2>&1; sleep 60
+done
+exit 1
