@@ -336,6 +336,8 @@ is_live() { [ -d /run/live/medium ]; }
 install_eagle() { sudo -n /usr/local/sbin/eagle-install; }
 
 # ---------- Main ----------
+# Let the full-screen terminal finish sizing itself before drawing (keeps boxes centred)
+prev=""; for _ in $(seq 1 15); do cur="$(tput cols 2>/dev/null)x$(tput lines 2>/dev/null)"; [ "$cur" = "$prev" ] && break; prev=$cur; sleep 0.2; done
 if [ "$MODE_ARG" = "--action" ]; then
   case "$ACTION_ARG" in
     wifi)    wifi_setup ;;

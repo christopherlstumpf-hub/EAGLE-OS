@@ -9,7 +9,7 @@ lb config noauto \
   --binary-images iso-hybrid \
   --debian-installer live \
   --debian-installer-gui false \
-  --bootappend-live "boot=live components quiet splash plymouth.use-simpledrm loglevel=3 vt.global_cursor_default=0 live-config.noautologin hostname=eagle" \
+  --bootappend-live "boot=live components quiet splash plymouth.use-simpledrm loglevel=3 vt.global_cursor_default=0 live-config.noautologin live-config.timezone=America/New_York hostname=eagle" \
   --iso-application "EAGLE" \
   --iso-volume "EAGLE" \
   --memtest none \
