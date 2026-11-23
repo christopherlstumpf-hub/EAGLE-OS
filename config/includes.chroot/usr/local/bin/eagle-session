@@ -84,23 +84,24 @@ if grep -qw 'eagle.install=1' /proc/cmdline && [ ! -f /tmp/eagle-install-offered
   # If the install was cancelled, carry on into EAGLE-OS from the stick.
 fi
 
-# First boot: make sure sound starts unmuted at a comfortable level.
-if [ ! -f "$CONF/setup-done" ]; then
-  wpctl set-mute @DEFAULT_AUDIO_SINK@ 0 2>/dev/null
-  wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.6 2>/dev/null
-fi
-
-# EAGLE-OS startup chime: once per start (turn it off in the EAGLE menu > Sound).
+# Sound at start: first boot unmuted at 60%, then the EAGLE-OS startup chime (once per start;
+# turn it off in the EAGLE menu > Sound). Waits for the sound system to be ready first.
+FIRST_BOOT=0; [ -f "$CONF/setup-done" ] || FIRST_BOOT=1
+PLAY_CHIME=0
 if [ ! -f "$CONF/startup-sound-off" ] && [ ! -f /tmp/eagle-startup-sound-played ]; then
-  touch /tmp/eagle-startup-sound-played
-  (
-    for _ in $(seq 1 20); do   # wait up to 10 s for the sound system
-      wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && break
-      sleep 0.5
-    done
-    pw-play --volume 0.8 /usr/share/eagle/sounds/startup.wav
-  ) >/dev/null 2>&1 &
+  touch /tmp/eagle-startup-sound-played; PLAY_CHIME=1
 fi
+(
+  for _ in $(seq 1 30); do   # up to 15 s
+    wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && break
+    sleep 0.5
+  done
+  if [ "$FIRST_BOOT" = 1 ]; then
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+    wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.6
+  fi
+  [ "$PLAY_CHIME" = 1 ] && pw-play --volume 0.8 /usr/share/eagle/sounds/startup.wav
+) >/dev/null 2>&1 &
 
 if [ ! -f "$CONF/setup-done" ] || ! nm-online --quiet --timeout=15; then
   screen /usr/local/bin/eagle-setup --first-run
