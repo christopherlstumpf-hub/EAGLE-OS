@@ -198,62 +198,17 @@ loadCalendarData();
 // roll over at midnight
 setInterval(() => { const t = new Date(); if (t.getHours() === 0 && t.getMinutes() === 0) goToday(); }, 60000);
 
-// ---------- Antivirus status ----------
-function when(iso) {
-  if (!iso) return "never";
-  const d = new Date(iso);
-  if (isNaN(d)) return iso;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + ", " +
-         d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
+// ---------- Antivirus: only shown here if something was found (details in the E menu > Security) ----------
 async function renderSecurity() {
   const s = await eagle("security_status");
-  const dot = document.getElementById("sec-dot");
-  const title = document.getElementById("sec-title");
-  const lines = document.getElementById("sec-lines");
-  dot.className = "dot";
-  if (!s || !s.ok) { title.textContent = "Antivirus status unavailable"; lines.textContent = ""; return; }
-
-  if (s.threats_found > 0) {
-    dot.classList.add("bad");
-    title.textContent = `${s.threats_found} threat${s.threats_found === 1 ? "" : "s"} quarantined`;
-  } else if (!s.signatures) {
-    dot.classList.add("warn");
-    title.textContent = s.live ? "Antivirus ready (not set up from USB)" : "Getting virus definitions…";
-  } else {
-    dot.classList.add("ok");
-    title.textContent = "Protected";
-  }
-
-  const out = [];
-  out.push(s.realtime ? "Watching downloads in real time" : (s.live ? "Scans available from Security" : "Scheduled scans of downloads"));
-  out.push("Virus definitions: " + (s.signatures ? when(s.signatures) : "not downloaded yet"));
-  out.push("Last scan: " + when(s.last_scan) + (s.last_scan && s.last_scan_threats === 0 ? " · clean" : ""));
-  lines.innerHTML = "";
-  for (const t of out) { const div = document.createElement("div"); div.textContent = t; lines.appendChild(div); }
+  const el = document.getElementById("sec-alert");
+  const n = s && s.ok ? s.threats_found || 0 : 0;
+  el.hidden = n <= 0;
+  if (n > 0) el.textContent = `⚠ ${n} threat${n === 1 ? "" : "s"} found and quarantined · Open Security`;
 }
+document.getElementById("sec-alert").addEventListener("click", () => eagle("security"));
 renderSecurity();
 setInterval(renderSecurity, 5 * 60 * 1000);
-
-// ---------- Screensaver summary ----------
-(async () => {
-  const NAMES = { beach: "Beach", mountains: "Mountains", winter: "Winter", summer: "Summer", fall: "Fall", spring: "Spring" };
-  const m = new Date().getMonth();
-  const season = m >= 2 && m <= 4 ? "spring" : m >= 5 && m <= 7 ? "summer" : m >= 8 && m <= 10 ? "fall" : "winter";
-  let s = { timeoutMin: 0, saverMin: 10, saverTheme: "season" };
-  try { s = { ...s, ...(await browser.storage.local.get(s)) }; } catch (e) { /* defaults */ }
-  const theme = s.saverTheme === "season" ? season : (s.saverTheme === "rotate" ? "mountains" : s.saverTheme);
-  document.getElementById("saver-thumb").style.backgroundImage = `url("scenes/thumbs/${theme}.jpg")`;
-  const pics = s.saverTheme === "season" ? `Current season (${NAMES[season]})` : s.saverTheme === "rotate" ? "Rotate all" : NAMES[s.saverTheme];
-  const lines = document.getElementById("saver-lines");
-  lines.innerHTML = "";
-  for (const t of [
-    "Pictures: " + pics,
-    "Starts after: " + (s.saverMin ? `${s.saverMin} min` : "off"),
-    "Return to start page: " + (s.timeoutMin ? `${s.timeoutMin} min` : "off"),
-  ]) { const d = document.createElement("div"); d.textContent = t; lines.appendChild(d); }
-})();
 
 // ---------- Link buttons: six fixed + your own (add / remove) ----------
 const FIXED_LINKS = [
