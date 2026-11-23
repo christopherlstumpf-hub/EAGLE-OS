@@ -1,0 +1,5 @@
+# EAGLE-OS: on built-in laptop keyboards, F9 = volume down and F10 = volume up.
+# (External USB keyboards keep normal F9/F10.)  AT scancodes: F9 = 0x43, F10 = 0x44.
+evdev:atkbd:*
+ KEYBOARD_KEY_43=volumedown
+ KEYBOARD_KEY_44=volumeup

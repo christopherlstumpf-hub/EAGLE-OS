@@ -112,6 +112,9 @@ EAGLE-OS includes ClamAV, the standard open-source antivirus.
 
 Running from the USB stick, scans still work, but the definitions (about 250 MB) download into memory each time.
 
+## Volume keys
+On a laptop's built-in keyboard, **F9** lowers the volume and **F10** raises it, in Firefox, the EAGLE menus and the screensaver, with a soft tick at the new level. Hold the key to keep changing. The laptop's mute key toggles mute. A plugged-in USB keyboard keeps normal F9/F10 (its own volume keys still work).
+
 ## Camera
 USB webcams and most built-in laptop cameras (UVC) work in Firefox for video calls; sites ask before using it. Use **Camera test** to check it. Some very new laptops with Intel "IPU6" MIPI cameras aren't supported yet.
 

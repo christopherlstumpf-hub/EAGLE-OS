@@ -89,3 +89,6 @@ firmware-intel-sound
 clamav
 clamav-freshclam
 clamav-daemon
+
+# F9 / F10 volume keys on the built-in keyboard (works in every screen)
+triggerhappy

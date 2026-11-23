@@ -1,0 +1,18 @@
+#!/bin/sh
+# EAGLE-OS volume keys: eagle-volume up|down|mute  (run as the kiosk user by triggerhappy)
+XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export XDG_RUNTIME_DIR
+SINK=@DEFAULT_AUDIO_SINK@
+case "$1" in
+  up)   wpctl set-mute "$SINK" 0; wpctl set-volume -l 1.0 "$SINK" 5%+ ;;
+  down) wpctl set-volume "$SINK" 5%- ;;
+  mute) wpctl set-mute "$SINK" toggle; exit 0 ;;
+  *)    exit 2 ;;
+esac
+# a soft tick at the new level, at most a few per second
+LOCK="$XDG_RUNTIME_DIR/eagle-volume-tick"
+now=$(date +%s%N); last=$(cat "$LOCK" 2>/dev/null || echo 0)
+if [ $((now - last)) -gt 150000000 ]; then
+  echo "$now" > "$LOCK"
+  pw-play /usr/share/eagle/sounds/tick.wav >/dev/null 2>&1 &
+fi
