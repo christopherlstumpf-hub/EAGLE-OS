@@ -61,6 +61,7 @@ Click the orange **E** button in Firefox's toolbar, or close Firefox, to open th
 - **Display and screen size**: resolution and text/button size
 - **Sound**: volume, mute, choose speakers, headphones or HDMI, test sound
 - **Camera test**: live preview and a microphone level meter
+- **Disks and partitions (GParted)**: view, resize, format or wipe drives and partitions, including Windows (NTFS) and exFAT drives
 - **Updates**: check for updates, install them now, or turn automatic updates on or off
 - **Install EAGLE-OS on this PC**: shown while running from the stick or card
 - **Restart** / **Shut down**

@@ -2,13 +2,13 @@
 """EAGLE-OS menu helper for the Firefox toolbar button and start page.
 
 Firefox talks to it through native messaging (length-prefixed JSON on stdin/stdout).
-Actions that need a full-screen EAGLE screen (Wi-Fi, Display, Sound, Camera, Updates,
-Install, Menu) are handed to the EAGLE session: the request is written to a file and
+Actions that need a full-screen EAGLE screen (Wi-Fi, Display, Sound, Disks/GParted,
+Updates, Install, Menu) are handed to the EAGLE session: the request is written to a file and
 Firefox is closed; the session opens that screen, then reopens Firefox.
 """
 import json, os, struct, subprocess, sys
 
-SCREENS = {"wifi", "display", "sound", "updates", "install", "menu"}
+SCREENS = {"wifi", "display", "sound", "disks", "updates", "install", "menu"}
 REQUEST = os.path.expanduser("~/.config/eagle/request")
 
 

@@ -76,3 +76,8 @@ xinit
 x11-xserver-utils
 matchbox-window-manager
 xterm
+
+# Disks and partitions (GParted) with support for Windows (NTFS) and exFAT drives
+gparted
+ntfs-3g
+exfatprogs

@@ -5,7 +5,7 @@
     "OverrideFirstRunPage": "",
     "OverridePostUpdatePage": "",
     "Homepage": {
-      "URL": "file:///usr/share/eagle/start.html",
+      "URL": "moz-extension://6f1c2e8a-3b7d-4e59-9a0b-5e61a9e00001/start.html",
       "StartPage": "homepage"
     },
     "ExtensionSettings": {
@@ -34,6 +34,8 @@
         "Value": false,
         "Status": "default"
       }
-    }
+    },
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true
   }
 }

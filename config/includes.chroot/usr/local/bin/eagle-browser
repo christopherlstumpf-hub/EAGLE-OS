@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs inside cage: applies the saved display settings, then starts Firefox.
 
-HOME_URL="file:///usr/share/eagle/start.html"
+HOME_URL="moz-extension://6f1c2e8a-3b7d-4e59-9a0b-5e61a9e00001/start.html"
 KIOSK=0
 # shellcheck source=/dev/null
 [ -r /etc/eagle/eagle.conf ] && . /etc/eagle/eagle.conf

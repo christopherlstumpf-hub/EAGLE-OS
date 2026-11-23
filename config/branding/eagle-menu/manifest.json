@@ -1,19 +1,32 @@
 {
   "manifest_version": 2,
   "name": "EAGLE-OS menu",
-  "version": "1.0",
-  "description": "EAGLE-OS button: Wi-Fi, Display, Sound, Updates, Install, Restart, Shut down",
-  "browser_specific_settings": { "gecko": { "id": "menu@eagle-os" } },
-  "permissions": ["nativeMessaging"],
-  "icons": { "64": "icon-64.png", "128": "icon-128.png" },
+  "version": "1.1",
+  "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Camera, Disks, Updates, Install, Restart, Shut down",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "menu@eagle-os"
+    }
+  },
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "icons": {
+    "64": "icon-64.png",
+    "128": "icon-128.png"
+  },
   "browser_action": {
-    "default_icon": { "64": "icon-64.png", "128": "icon-128.png" },
+    "default_icon": {
+      "64": "icon-64.png",
+      "128": "icon-128.png"
+    },
     "default_title": "EAGLE-OS menu",
     "default_popup": "popup.html",
     "default_area": "navbar"
   },
-  "background": { "scripts": ["background.js"] },
-  "content_scripts": [
-    { "matches": ["file:///usr/share/eagle/*"], "js": ["start.js"], "run_at": "document_idle" }
-  ]
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  }
 }

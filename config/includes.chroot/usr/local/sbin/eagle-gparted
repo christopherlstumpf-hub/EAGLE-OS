@@ -1,0 +1,16 @@
+#!/bin/bash
+# Opens GParted (as root) on the current EAGLE display. Run via sudo from the EAGLE menu.
+#   eagle-gparted WAYLAND_DISPLAY XDG_RUNTIME_DIR DISPLAY
+set -u
+wl="${1:-}"; rt="${2:-}"; dp="${3:-}"
+# Only accept the shapes the EAGLE session uses
+[[ "$wl" =~ ^(wayland-[0-9]+)?$ ]] || exit 2
+[[ "$rt" =~ ^(/run/user/[0-9]+)?$ ]] || exit 2
+[[ "$dp" =~ ^(:[0-9]+)?$ ]] || exit 2
+if [ -n "$wl" ]; then
+  export WAYLAND_DISPLAY="$wl" XDG_RUNTIME_DIR="$rt" GDK_BACKEND=wayland
+else
+  export DISPLAY="$dp" GDK_BACKEND=x11
+fi
+export GTK_THEME=Adwaita:dark
+exec /usr/sbin/gparted

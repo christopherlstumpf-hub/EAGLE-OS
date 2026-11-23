@@ -2,7 +2,7 @@
 # EAGLE-OS setup and menu screen (runs in a full-screen terminal under cage).
 #   eagle-setup --first-run   welcome, Wi-Fi, display, sound, then start browsing
 #   eagle-setup --menu        shown when Firefox is closed: adds Updates / Install / Restart / Shut down
-#   eagle-setup --action X    open one screen (wifi, display, sound, updates, install, menu) and return
+#   eagle-setup --action X    open one screen (wifi, display, sound, disks, updates, install, menu) and return
 
 MODE_ARG="${1:---menu}"
 ACTION_ARG="${2:-}"
@@ -42,7 +42,7 @@ pick_output() {
   fi
   if [ "${#outs[@]}" -eq 1 ]; then OUTPUT="${outs[0]}"; return 0; fi
   for o in "${outs[@]}"; do items+=("$o" ""); done
-  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 9 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
+  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
 }
 
 pick_resolution() {
@@ -125,7 +125,7 @@ pick_output_device() {
     whiptail --title "$TITLE · Sound" --msgbox "No speakers or headphones were found on this PC." 8 $W
     return
   fi
-  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 9 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || return
   wpctl set-default "$id"
 }
 
@@ -198,6 +198,12 @@ updates_menu() {
   done
 }
 
+# ---------- Disks (GParted) ----------
+disks_gparted() {
+  whiptail --title "$TITLE · Disks" --yesno "GParted shows and changes the drives and partitions in this PC.\n\nChanges you apply in GParted can erase data. Close GParted to come back here.\n\nOpen GParted?" 13 $W || return
+  sudo -n /usr/local/sbin/eagle-gparted "${WAYLAND_DISPLAY:-}" "${XDG_RUNTIME_DIR:-}" "${DISPLAY:-}" >/dev/null 2>&1
+}
+
 # ---------- Install ----------
 is_live() { [ -d /run/live/medium ]; }
 install_eagle() { sudo -n /usr/local/sbin/eagle-install; }
@@ -208,6 +214,7 @@ if [ "$MODE_ARG" = "--action" ]; then
     wifi)    wifi_setup ;;
     display) display_setup ;;
     sound)   sound_menu ;;
+    disks)   disks_gparted ;;
     updates) updates_menu ;;
     install) install_eagle ;;
     *)       MODE_ARG="--menu" ;;
@@ -222,7 +229,7 @@ fi
 while true; do
   items=(browse "Start browsing" wifi "Wi-Fi and network" display "Display and screen size" sound "Sound")
   if [ "$MODE_ARG" = "--menu" ]; then
-    items+=(updates "Updates")
+    items+=(disks "Disks and partitions (GParted)" updates "Updates")
   fi
   if is_live; then
     items+=(install "Install EAGLE-OS on this PC (wipes a drive)")
@@ -230,11 +237,12 @@ while true; do
   if [ "$MODE_ARG" = "--menu" ]; then
     items+=(restart "Restart" shutdown "Shut down")
   fi
-  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 9 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
+  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
   case "$choice" in
     wifi)     wifi_setup ;;
     display)  display_setup ;;
     sound)    sound_menu ;;
+    disks)    disks_gparted ;;
     updates)  updates_menu ;;
     install)  install_eagle ;;
     restart)  systemctl reboot; exit 0 ;;

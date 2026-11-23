@@ -19,7 +19,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 WORK="$ROOT/build/$VARIANT"
 
 apt-get update
-apt-get install -y live-build rsync
+apt-get install -y live-build rsync zip
 
 # Fresh working copy of the build config, with the variant's changes laid on top
 rm -rf "$WORK"
@@ -32,6 +32,16 @@ if [ "$VARIANT" != "standard" ]; then
 fi
 
 cd "$WORK"
+
+# EAGLE-OS add-on (start page, camera test, toolbar menu), with this edition's logo
+ADDON="$WORK/build-addon"
+rm -rf "$ADDON"; cp -a config/branding/eagle-menu "$ADDON"
+cp config/includes.chroot/usr/share/eagle/logo.png "$ADDON/logo.png"
+mkdir -p config/includes.chroot/usr/share/eagle
+(cd "$ADDON" && rm -f ../eagle-menu.xpi && zip -q -r -X ../eagle-menu.xpi .)
+mv -f "$WORK/eagle-menu.xpi" config/includes.chroot/usr/share/eagle/eagle-menu.xpi
+rm -rf "$ADDON"
+
 chmod +x auto/* config/hooks/live/*.hook.* config/includes.chroot/usr/local/bin/* config/includes.chroot/usr/local/sbin/*
 # The boot menu is branded by config/hooks/live/0900-eagle-bootmenu.hook.binary
 

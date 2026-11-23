@@ -62,14 +62,6 @@
   <div class="tip">The orange <b>E</b> button in the toolbar opens <b>Wi-Fi</b>, <b>Display</b>, <b>Sound</b>, <b>Camera</b>, <b>Updates</b>, <b>Restart</b> and <b>Shut down</b>.</div>
   <div class="byline">EAGLE-OS by Stumpf Technology</div>
 </main>
-<script>
-  function tick() {
-    var d = new Date();
-    document.getElementById("clock").textContent =
-      d.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" }) + "  ·  " +
-      d.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
-  }
-  tick(); setInterval(tick, 15000);
-</script>
+<script src="start-page.js"></script>
 </body>
 </html>
