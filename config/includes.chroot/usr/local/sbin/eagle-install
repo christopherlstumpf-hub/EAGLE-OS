@@ -11,6 +11,7 @@ set -uo pipefail
 # shellcheck source=/dev/null
 . /usr/local/lib/eagle/newt-colors.sh
 T="EAGLE-OS Installer"
+whiptail() { command whiptail --notags "$@"; }   # menus show labels only
 W=74
 LOG=/var/log/eagle-install.log
 TARGET=/mnt/eagle-target
@@ -153,6 +154,9 @@ fi
   [ -n "$EFI_PART" ] && echo "UUID=$(blkid -s UUID -o value "$EFI_PART") /boot/efi vfat umask=0077 0 1"
 } > "$TARGET/etc/fstab"
 echo eagle > "$TARGET/etc/hostname"
+# Keep the time zone chosen on the stick
+cp -a /etc/timezone "$TARGET/etc/timezone" 2>/dev/null
+ln -sf "$(readlink /etc/localtime)" "$TARGET/etc/localtime" 2>/dev/null
 printf '127.0.0.1\tlocalhost\n127.0.1.1\teagle\n::1\tlocalhost ip6-localhost ip6-loopback\n' > "$TARGET/etc/hosts"
 
 # Bring the Wi-Fi networks and display settings from this session along

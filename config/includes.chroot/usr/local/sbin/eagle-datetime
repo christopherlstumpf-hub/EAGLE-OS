@@ -1,0 +1,35 @@
+#!/bin/bash
+# EAGLE-OS date and time. Runs as root via sudo from the EAGLE "Date and time" screen.
+#   eagle-datetime status                    auto=on|off tz=Zone/Name
+#   eagle-datetime auto on|off               set the clock automatically from the internet
+#   eagle-datetime zone Area/City            change the time zone
+#   eagle-datetime set "YYYY-MM-DD HH:MM"    set the date and time by hand (turns automatic off)
+set -u
+
+case "${1:-}" in
+  status)
+    if [ "$(timedatectl show -p NTP --value 2>/dev/null)" = "yes" ]; then a=on; else a=off; fi
+    echo "auto=$a tz=$(timedatectl show -p Timezone --value 2>/dev/null)"
+    ;;
+  auto)
+    case "${2:-}" in
+      on)  timedatectl set-ntp true ;;
+      off) timedatectl set-ntp false ;;
+      *) exit 2 ;;
+    esac
+    ;;
+  zone)
+    z="${2:-}"
+    [[ "$z" =~ ^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)*$ ]] || exit 2
+    [ -f "/usr/share/zoneinfo/$z" ] || exit 2
+    timedatectl set-timezone "$z"
+    ;;
+  set)
+    when="${2:-}"
+    [[ "$when" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\ [0-9]{2}:[0-9]{2}(:[0-9]{2})?$ ]] || exit 2
+    date -d "$when" >/dev/null 2>&1 || exit 2
+    timedatectl set-ntp false
+    timedatectl set-time "$when"
+    ;;
+  *) sed -n '2,6p' "$0" >&2; exit 2 ;;
+esac

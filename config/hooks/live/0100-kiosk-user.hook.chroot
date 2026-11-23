@@ -16,7 +16,11 @@ done
 
 chmod 0755 /usr/local/bin/eagle-session /usr/local/bin/eagle-browser /usr/local/bin/eagle-setup /usr/local/sbin/eagle-update
 chmod 0440 /etc/sudoers.d/eagle-update
-chmod 0755 /usr/local/sbin/eagle-install /usr/local/sbin/eagle-gparted /usr/local/lib/eagle/eagle-native
+chmod 0755 /usr/local/sbin/eagle-install /usr/local/sbin/eagle-gparted /usr/local/sbin/eagle-datetime /usr/local/lib/eagle/eagle-native
+# Default time zone (changeable in Date and time); automatic time on
+ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime
+echo America/New_York > /etc/timezone
+systemctl enable systemd-timesyncd.service 2>/dev/null || true
 systemctl enable greetd.service
 systemctl enable NetworkManager.service
 systemctl enable zramswap.service

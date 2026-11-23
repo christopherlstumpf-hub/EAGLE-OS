@@ -2,7 +2,7 @@
 # EAGLE-OS setup and menu screen (runs in a full-screen terminal under cage).
 #   eagle-setup --first-run   welcome, Wi-Fi, display, sound, then start browsing
 #   eagle-setup --menu        shown when Firefox is closed: adds Updates / Install / Restart / Shut down
-#   eagle-setup --action X    open one screen (wifi, display, sound, disks, security, updates, install, menu) and return
+#   eagle-setup --action X    open one screen (wifi, display, sound, datetime, disks, security, updates, install, menu) and return
 
 MODE_ARG="${1:---menu}"
 ACTION_ARG="${2:-}"
@@ -15,6 +15,7 @@ mkdir -p "$CONF"
 . /usr/local/lib/eagle/newt-colors.sh
 
 TITLE="EAGLE-OS"
+whiptail() { command whiptail --notags "$@"; }   # menus show labels only
 H=20; W=72
 
 net_status() {
@@ -42,7 +43,7 @@ pick_output() {
   fi
   if [ "${#outs[@]}" -eq 1 ]; then OUTPUT="${outs[0]}"; return 0; fi
   for o in "${outs[@]}"; do items+=("$o" ""); done
-  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 11 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
+  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 12 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
 }
 
 pick_resolution() {
@@ -64,7 +65,7 @@ pick_resolution() {
     return
   fi
   local choice
-  choice=$(whiptail --title "$TITLE · Display" --menu "Choose a screen resolution:" $H $W 11 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  choice=$(whiptail --title "$TITLE · Display" --menu "Choose a screen resolution:" $H $W 12 "${items[@]}" 3>&1 1>&2 2>&3) || return
   wlr-randr --output "$OUTPUT" --mode "$choice" 2>/dev/null
   if whiptail --title "$TITLE · Display" --yesno "Keep this resolution?" 8 $W; then
     MODE="$choice"; save_display
@@ -125,7 +126,7 @@ pick_output_device() {
     whiptail --title "$TITLE · Sound" --msgbox "No speakers or headphones were found on this PC." 8 $W
     return
   fi
-  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 11 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 12 "${items[@]}" 3>&1 1>&2 2>&3) || return
   wpctl set-default "$id"
 }
 
@@ -265,6 +266,71 @@ security_menu() {
   done
 }
 
+# ---------- Date and time ----------
+dt_status() { sudo -n /usr/local/sbin/eagle-datetime status 2>/dev/null; }
+
+pick_timezone() {
+  local z region regions=() cities=()
+  z=$(whiptail --title "$TITLE · Time zone" --menu "Choose your time zone:" $H $W 9 \
+      America/New_York    "Eastern (New York, Louisville, Atlanta)" \
+      America/Chicago     "Central (Chicago, Dallas, Nashville)" \
+      America/Denver      "Mountain (Denver, Salt Lake City)" \
+      America/Phoenix     "Arizona (no daylight saving)" \
+      America/Los_Angeles "Pacific (Los Angeles, Seattle)" \
+      America/Anchorage   "Alaska" \
+      Pacific/Honolulu    "Hawaii" \
+      UTC                 "UTC" \
+      other               "Other time zones..." 3>&1 1>&2 2>&3) || return
+  if [ "$z" = "other" ]; then
+    mapfile -t regions < <(timedatectl list-timezones 2>/dev/null | awk -F/ 'NF>1 {print $1}' | sort -u)
+    local items=(); for region in "${regions[@]}"; do items+=("$region" "$region"); done
+    region=$(whiptail --title "$TITLE · Time zone" --menu "Region:" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || return
+    mapfile -t cities < <(timedatectl list-timezones 2>/dev/null | grep "^$region/")
+    items=(); for z in "${cities[@]}"; do items+=("$z" "${z#*/}"); done
+    z=$(whiptail --title "$TITLE · Time zone" --menu "City:" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  fi
+  sudo -n /usr/local/sbin/eagle-datetime zone "$z" \
+    || whiptail --title "$TITLE · Time zone" --msgbox "Couldn't change the time zone." 8 $W
+}
+
+set_time_by_hand() {
+  local d t when
+  d=$(whiptail --title "$TITLE · Date" --inputbox "Today's date (year-month-day), for example $(date +%Y-%m-%d):" 10 $W "$(date +%Y-%m-%d)" 3>&1 1>&2 2>&3) || return
+  t=$(whiptail --title "$TITLE · Time" --inputbox "The time now, for example 2:30 PM or 14:30:" 10 $W "$(date '+%-I:%M %p')" 3>&1 1>&2 2>&3) || return
+  if ! when=$(date -d "$d $t" '+%Y-%m-%d %H:%M' 2>/dev/null); then
+    whiptail --title "$TITLE · Date and time" --msgbox "That date or time wasn't understood. Try again, e.g. 2026-11-23 and 2:30 PM." 9 $W
+    return
+  fi
+  if sudo -n /usr/local/sbin/eagle-datetime set "$when"; then
+    whiptail --title "$TITLE · Date and time" --msgbox "Date and time set to $(date '+%A, %B %-d, %Y  %-I:%M %p').\n\nAutomatic time is now off. Turn it back on any time from this screen." 11 $W
+  else
+    whiptail --title "$TITLE · Date and time" --msgbox "Couldn't set the date and time." 8 $W
+  fi
+}
+
+datetime_menu() {
+  local st auto tz choice toggle
+  while true; do
+    st=$(dt_status); auto=$(echo "$st" | sed -n 's/.*auto=\([a-z]*\).*/\1/p'); tz=$(echo "$st" | sed -n 's/.*tz=\(.*\)$/\1/p')
+    if [ "$auto" = "on" ]; then toggle="Automatic time: ON (turn off)"; else toggle="Automatic time: OFF (turn on)"; fi
+    choice=$(whiptail --title "$TITLE · Date and time" --menu "$(date '+%A, %B %-d, %Y   %-I:%M %p')\nTime zone: ${tz:-unknown}\nAutomatic time from the internet: ${auto:-unknown}" $H $W 5 \
+      auto   "$toggle" \
+      zone   "Change time zone" \
+      manual "Set date and time by hand" \
+      "back" "Back" 3>&1 1>&2 2>&3) || return
+    case "$choice" in
+      auto)
+        if [ "$auto" = "on" ]; then sudo -n /usr/local/sbin/eagle-datetime auto off
+        else sudo -n /usr/local/sbin/eagle-datetime auto on
+             whiptail --title "$TITLE · Date and time" --msgbox "Automatic time is on. The clock corrects itself within a minute when the PC is online." 9 $W
+        fi ;;
+      zone)   pick_timezone ;;
+      manual) set_time_by_hand ;;
+      *)      return ;;
+    esac
+  done
+}
+
 # ---------- Install ----------
 is_live() { [ -d /run/live/medium ]; }
 install_eagle() { sudo -n /usr/local/sbin/eagle-install; }
@@ -275,6 +341,7 @@ if [ "$MODE_ARG" = "--action" ]; then
     wifi)    wifi_setup ;;
     display) display_setup ;;
     sound)   sound_menu ;;
+    datetime) datetime_menu ;;
     disks)   disks_gparted ;;
     security) security_menu ;;
     updates) updates_menu ;;
@@ -289,7 +356,7 @@ if [ "$MODE_ARG" = "--first-run" ]; then
 fi
 
 while true; do
-  items=(browse "Start browsing" wifi "Wi-Fi and network" display "Display and screen size" sound "Sound")
+  items=(browse "Start browsing" wifi "Wi-Fi and network" display "Display and screen size" sound "Sound" datetime "Date and time")
   if [ "$MODE_ARG" = "--menu" ]; then
     items+=(security "Security (antivirus)" disks "Disks and partitions (GParted)" updates "Updates")
   fi
@@ -299,11 +366,12 @@ while true; do
   if [ "$MODE_ARG" = "--menu" ]; then
     items+=(restart "Restart" shutdown "Shut down")
   fi
-  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 11 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
+  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 12 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
   case "$choice" in
     wifi)     wifi_setup ;;
     display)  display_setup ;;
     sound)    sound_menu ;;
+    datetime) datetime_menu ;;
     disks)    disks_gparted ;;
     security) security_menu ;;
     updates)  updates_menu ;;

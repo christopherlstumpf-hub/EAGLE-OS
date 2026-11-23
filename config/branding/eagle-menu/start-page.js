@@ -67,8 +67,6 @@ function renderCalendar() {
     grid.appendChild(el);
   }
 
-  document.getElementById("cal-today-text").textContent =
-    today.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }
 
 function goToday() {

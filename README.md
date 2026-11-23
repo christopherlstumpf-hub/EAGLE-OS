@@ -73,6 +73,7 @@ Click the orange **E** button in Firefox's toolbar, or close Firefox, to open th
 - **Start browsing**
 - **Wi-Fi and network**
 - **Display and screen size**: resolution and text/button size
+- **Date and time**: automatic time from the internet (on by default), time zone (US zones listed first, then any city), or set the date and time by hand
 - **Sound**: volume, mute, choose speakers, headphones or HDMI, test sound, startup sound on/off
 - **Camera test**: live preview and a microphone level meter
 - **Security (antivirus)**: scan Downloads, all your files or the whole system, update virus definitions, manage quarantine
@@ -89,7 +90,7 @@ EAGLE-OS runs on Debian 13. By default it installs Debian's security and regular
 If you're running straight from the stick or card (Run EAGLE-OS), updates are lost at restart. Install EAGLE-OS to keep it updated.
 
 ## Start page
-Search, quick links and an **Install EAGLE-OS** banner when running from the stick. On the right are a **month calendar** (today in orange, with previous/next month) and a **Security** card showing antivirus status.
+Search, quick links and an **Install EAGLE-OS** banner when running from the stick. On the right are a **month calendar** (today in orange, with previous/next month and a **Set date and time** link) and a **Security** card showing antivirus status. The default time zone is US Eastern; change it under **Date and time**.
 
 ## Antivirus
 EAGLE-OS includes ClamAV, the standard open-source antivirus.

@@ -8,7 +8,7 @@ Firefox is closed; the session opens that screen, then reopens Firefox.
 """
 import json, os, struct, subprocess, sys
 
-SCREENS = {"wifi", "display", "sound", "disks", "security", "updates", "install", "menu"}
+SCREENS = {"wifi", "display", "sound", "datetime", "disks", "security", "updates", "install", "menu"}
 REQUEST = os.path.expanduser("~/.config/eagle/request")
 
 
