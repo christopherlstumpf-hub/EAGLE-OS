@@ -108,7 +108,7 @@ Search, link buttons and an **Install EAGLE-OS** banner when running from the st
 
 ## Spotify and streaming
 
-The start page has a Spotify tile (open.spotify.com; remove it in Edit links if you like). Spotify, Netflix and other protected music and video need Google's Widevine module, which Firefox downloads by itself the first time it's online (a few seconds; on a stick, after each restart). Sign in with your Spotify account; the web player needs a Premium account for full playback on some systems.
+The start page has a Spotify tile (open.spotify.com; remove it in Edit links if you like). Spotify, Netflix and other protected music and video need Google's Widevine module, which Firefox downloads by itself the first time it's online (a few seconds; on a stick, after each restart). Sign in with your Spotify account (free or Premium).
 
 ## Screen timeout and screensaver
 Open **Screen timeout and screensaver** from the orange E button or the start page's Screensaver card.
