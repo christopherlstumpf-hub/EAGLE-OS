@@ -100,6 +100,18 @@ def main():
         except OSError:
             variant = "standard"
         send({"ok": True, "live": live, "variant": variant})
+    elif action == "camera_status":
+        facetime = False
+        for d in os.listdir("/sys/bus/pci/devices"):
+            if read(f"/sys/bus/pci/devices/{d}/vendor") == "0x14e4" and read(f"/sys/bus/pci/devices/{d}/device") == "0x1570":
+                facetime = True
+        videos = [v for v in os.listdir("/dev") if v.startswith("video")]
+        send({"ok": True, "facetime": facetime, "videos": len(videos),
+              "firmware": os.path.exists("/lib/firmware/facetimehd/firmware.bin"),
+              "state": read("/run/eagle-facetime-state") or "starting"})
+    elif action == "camera_retry":
+        subprocess.Popen(["sudo", "-n", "/usr/bin/systemctl", "restart", "eagle-facetime-firmware.service"])
+        send({"ok": True})
     elif action == "battery":
         send(battery())
     elif action == "security_status":

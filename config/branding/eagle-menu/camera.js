@@ -29,6 +29,7 @@
                     NotAllowedError: "Camera access was blocked. Press the camera icon in the address bar to allow it.",
                     NotReadableError: "The camera is busy or not supported. Unplug it, plug it back in and try again." }[e.name];
       status.textContent = msg || `Camera problem: ${e.message}`;
+      if (e.name === "NotFoundError") macCamera();
     }
   }
 
@@ -46,6 +47,38 @@
       requestAnimationFrame(tick);
     })();
   }
+
+  // Mac FaceTime HD camera: its driver needs a file from Apple, downloaded once the Mac is online.
+  const MAC_MSG = {
+    starting: "Getting the Mac's FaceTime camera ready…",
+    "waiting-online": "The Mac's FaceTime camera needs a file from Apple. Connect to Wi-Fi and it downloads by itself.",
+    downloading: "Downloading the FaceTime camera file from Apple (about 18 MB)…",
+    "failed-offline": "Couldn't reach Apple to set up the FaceTime camera. Check Wi-Fi, then press Try again.",
+    "failed-download": "The FaceTime camera file didn't download. Press Try again.",
+    "failed-driver": "The FaceTime camera file is in place, but the camera didn't start. Restart the Mac and try again.",
+  };
+  let macTimer = null;
+  async function macCamera() {
+    let st = null;
+    try { st = await browser.runtime.sendNativeMessage("eagle", { action: "camera_status" }); } catch (e) { return; }
+    if (!st || !st.facetime) return;
+    const retry = document.getElementById("retry");
+    if (st.videos > 0 && (st.firmware || st.state === "ready")) {
+      retry.hidden = true;
+      if (macTimer) { clearInterval(macTimer); macTimer = null; status.textContent = "FaceTime camera ready. Press Turn on camera."; }
+      return;
+    }
+    status.textContent = MAC_MSG[st.state] || MAC_MSG.starting;
+    retry.hidden = !String(st.state).startsWith("failed");
+    if (!macTimer) macTimer = setInterval(macCamera, 5000);
+  }
+  document.getElementById("retry").onclick = async () => {
+    try { await browser.runtime.sendNativeMessage("eagle", { action: "camera_retry" }); } catch (e) { /* ignore */ }
+    status.textContent = MAC_MSG.starting;
+    document.getElementById("retry").hidden = true;
+    if (!macTimer) macTimer = setInterval(macCamera, 5000);
+  };
+  macCamera();
 
   document.getElementById("start").onclick = start;
   cams.onchange = start;

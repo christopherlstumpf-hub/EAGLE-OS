@@ -4,32 +4,45 @@
 # (about 18 MB) from Apple's update server once it is online, then turns the camera on.
 FW=/lib/firmware/facetimehd/firmware.bin
 SRC=/usr/share/eagle/facetimehd-firmware
+STATE=/run/eagle-facetime-state     # read by the Camera test page
+LOG=/var/log/eagle-facetime.log
+URL=$(sed -n 's/^URL:=//p' "$SRC/Makefile" | head -1)
+URL=${URL//\$(DMG)/$(sed -n 's/^DMG:=//p' "$SRC/Makefile" | head -1)}
+state() { echo "$1" > "$STATE"; echo "$(date '+%F %T') $1" >> "$LOG"; }
 # Is there a FaceTime HD camera (Broadcom 14e4:1570)?
 found=0
 for d in /sys/bus/pci/devices/*; do
   [ "$(cat "$d/vendor")" = 0x14e4 ] && [ "$(cat "$d/device")" = 0x1570 ] && found=1
 done
-[ "$found" = 1 ] || { echo "no FaceTime HD camera"; exit 0; }
-[ -s "$FW" ] && { echo "firmware already present"; exit 0; }
+[ "$found" = 1 ] || { echo none > "$STATE"; exit 0; }
+[ -s "$FW" ] && { state ready; exit 0; }
 
-# Wait for the internet (Wi-Fi may be set up later in the EAGLE setup screens): up to 2 hours
-for _ in $(seq 1 360); do
-  curl -fsI --max-time 10 https://updates.cdn-apple.com/ >/dev/null 2>&1 && break
-  sleep 20
+# Wait for the internet (Wi-Fi may be set up later in the EAGLE setup screens): up to 2 hours.
+# Asks Apple's server for the first byte of the file (its front page always answers "forbidden").
+state waiting-online
+online=0
+for _ in $(seq 1 720); do
+  code=$(curl -s -o /dev/null --max-time 15 -w '%{http_code}' -r 0-0 "$URL" 2>/dev/null)
+  case "$code" in 200|206) online=1; break ;; esac
+  sleep 10
 done
+[ "$online" = 1 ] || { state failed-offline; exit 1; }
 
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 cp -a "$SRC/." "$WORK/"
 cd "$WORK" || exit 1
+state downloading
 for attempt in 1 2 3; do
   if make >/dev/null 2>&1 && [ -s firmware.bin ]; then
     install -Dm644 firmware.bin "$FW"
     install -m644 ./*_01XX.dat /lib/firmware/facetimehd/ 2>/dev/null
-    echo "camera firmware installed"
     modprobe -r facetimehd 2>/dev/null; modprobe facetimehd
+    sleep 2
+    if ls /dev/video* >/dev/null 2>&1; then state ready; else state failed-driver; fi
     exit 0
   fi
-  echo "download attempt $attempt failed"; make clean >/dev/null 2>&1; sleep 60
+  echo "$(date '+%F %T') download attempt $attempt failed" >> "$LOG"; make clean >/dev/null 2>&1; sleep 30
 done
+state failed-download
 exit 1
