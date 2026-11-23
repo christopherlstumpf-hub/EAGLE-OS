@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "EAGLE-OS menu",
-  "version": "1.2",
+  "version": "1.3",
   "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Date and time, Camera, Security, Disks, Updates, screen timeout and screensaver",
   "browser_specific_settings": {
     "gecko": {

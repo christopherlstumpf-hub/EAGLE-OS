@@ -38,3 +38,5 @@ systemctl enable triggerhappy.service 2>/dev/null || true
 # Mac support: camera firmware download (does nothing on other PCs)
 chmod 0755 /usr/local/sbin/eagle-facetime-firmware
 systemctl enable eagle-facetime-firmware.service
+chmod 0755 /usr/local/sbin/eagle-mac-drivers /etc/kernel/postinst.d/zz-eagle-mac-check
+systemctl enable eagle-mac-drivers.service

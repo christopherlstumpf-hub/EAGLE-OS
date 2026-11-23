@@ -1,0 +1,14 @@
+[Unit]
+Description=EAGLE-OS: automatic Mac driver rebuilds (installed Macs)
+ConditionPathExists=!/var/lib/eagle/mac-dkms-done
+ConditionPathExists=!/run/live/medium
+After=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/eagle-mac-drivers
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

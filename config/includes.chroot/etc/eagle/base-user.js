@@ -18,3 +18,8 @@ user_pref("ui.systemUsesDarkTheme", 1);
 user_pref("widget.content.allow-gtk-dark-theme", true);
 // Allow the EAGLE-OS toolbar style (larger orange E button)
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+// Spotify, Netflix and other protected music/video: Firefox fetches Google's Widevine module once online
+user_pref("media.eme.enabled", true);
+user_pref("media.gmp-widevinecdm.enabled", true);
+user_pref("media.gmp-widevinecdm.visible", true);
+user_pref("media.gmp-manager.updateEnabled", true);

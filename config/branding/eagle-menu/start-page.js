@@ -152,6 +152,7 @@ const FIXED_LINKS = [
   { title: "Weather", url: "https://weather.com" },
 ];
 const STARTER_LINKS = [
+  { title: "Spotify", url: "https://open.spotify.com/" },
   { title: "Camera test", url: "camera.html" },
   { title: "Wi-Fi", action: "wifi" },
   { title: "EAGLE menu", action: "menu" },

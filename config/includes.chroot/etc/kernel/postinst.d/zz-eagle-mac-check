@@ -1,0 +1,17 @@
+#!/bin/sh
+# EAGLE-OS on Macs: after a new Linux version is installed, check that the Wi-Fi driver was
+# rebuilt for it. If not, keep starting the current (working) version so Wi-Fi never disappears.
+KVER="$1"
+grep -q "Apple" /sys/class/dmi/id/sys_vendor 2>/dev/null || exit 0
+[ -d /run/live/medium ] && exit 0
+command -v grub-set-default >/dev/null || exit 0
+UUID=$(grub-probe --target=fs_uuid / 2>/dev/null) || exit 0
+if modinfo -k "$KVER" wl >/dev/null 2>&1; then
+  grub-set-default 0 2>/dev/null
+  echo "EAGLE-OS: Mac Wi-Fi driver ready for $KVER"
+else
+  RUN=$(uname -r)
+  grub-set-default "gnulinux-advanced-$UUID>gnulinux-$RUN-advanced-$UUID" 2>/dev/null
+  echo "EAGLE-OS: Mac Wi-Fi driver missing for $KVER - keeps starting $RUN" >&2
+fi
+exit 0

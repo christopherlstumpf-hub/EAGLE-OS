@@ -59,7 +59,7 @@ If you do start in Legacy mode, EAGLE-OS adds the startup fixes those laptops ne
 4. The FaceTime HD camera needs Apple's camera firmware, which can't be shipped on the stick. Once the Mac is online, EAGLE downloads it from Apple (about 18 MB) and the camera turns on a minute or two later. When running from the stick this happens on every start.
 5. The volume keys (F10–F12) and the brightness keys (F1/F2) work.
 
-**Installing on a Mac erases macOS** if you pick the Mac's internal drive. On an installed Mac, EAGLE keeps the kernel the Wi-Fi and camera drivers were built for, so Debian updates don't break them. Not yet tested on a real Mac; Macs with the T2 security chip (2018 and later) and Apple-silicon Macs are not supported.
+**Installing on a Mac erases macOS** if you pick the Mac's internal drive. On an installed Mac, the first time it's online EAGLE sets up automatic rebuilding of the Wi-Fi and camera drivers (about 300 MB, a few minutes in the background). After that the Mac gets the same Debian security updates as a PC. If a driver ever fails to rebuild for a new Linux version, the Mac keeps starting the previous one so Wi-Fi never disappears. Not yet tested on a real Mac; Macs with the T2 security chip (2018 and later) and Apple-silicon Macs are not supported.
 
 ## Installing (wipes a drive)
 You can start the EAGLE installer three ways: from the boot menu, with the orange **Install EAGLE-OS** button on the start page (shown while running from the stick), or from the orange **E** toolbar button.
@@ -95,6 +95,8 @@ Click the orange **E** button in Firefox's toolbar, or close Firefox, to open th
 The power button also shuts the PC down.
 
 ## Updates
+
+A fresh EAGLE-OS build is published every Monday with Debian's latest security fixes. When running from a stick, updates don't stick between restarts, so write the newest release to your stick now and then. Installed PCs and Macs update themselves daily.
 EAGLE-OS runs on Debian 13. By default it installs Debian's security and regular updates automatically in the background when it's online. You can also update on demand from **Updates** in the EAGLE menu.
 
 If you're running straight from the stick or card (Run EAGLE-OS), updates are lost at restart. Install EAGLE-OS to keep it updated.
@@ -103,6 +105,10 @@ If you're running straight from the stick or card (Run EAGLE-OS), updates are lo
 Search, link buttons and an **Install EAGLE-OS** banner when running from the stick.
 
 **Link buttons:** Google, Gmail, YouTube, Maps, News and Weather are always there. Use **+ Add link** for your own sites (a name and a web address like `facebook.com`). Turn on **Edit links** to show a ✕ that removes them. Camera test, Wi-Fi and EAGLE menu start as removable links. Your links are kept on installed PCs; running from the stick they reset at restart. On the right are a **month calendar** (today in orange, with previous/next month and a **Set date and time** link) and a **Security** card showing antivirus status. The default time zone is US Eastern; change it under **Date and time**.
+
+## Spotify and streaming
+
+The start page has a Spotify tile (open.spotify.com; remove it in Edit links if you like). Spotify, Netflix and other protected music and video need Google's Widevine module, which Firefox downloads by itself the first time it's online (a few seconds; on a stick, after each restart). Sign in with your Spotify account; the web player needs a Premium account for full playback on some systems.
 
 ## Screen timeout and screensaver
 Open **Screen timeout and screensaver** from the orange E button or the start page's Screensaver card.

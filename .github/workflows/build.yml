@@ -1,7 +1,7 @@
 # Builds both EAGLE-OS USB installers in GitHub's cloud:
 #   eagle-os.iso       standard
 #   eagle-os-lite.iso  for 2-4 GB RAM and slow processors
-# Runs on every update to main, or from the Actions tab ("Build USB installer" > Run workflow).
+# Runs on every update to main, every Monday (fresh Debian security fixes), or from the Actions tab ("Build USB installer" > Run workflow).
 # The finished ISOs appear on the repo's Releases page.
 name: Build USB installer
 
@@ -10,6 +10,8 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+  schedule:
+    - cron: "17 8 * * 1"   # Mondays 08:17 UTC: weekly build with the latest security fixes
 
 permissions:
   contents: write

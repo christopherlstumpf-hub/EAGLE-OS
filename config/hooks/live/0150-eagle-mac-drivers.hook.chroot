@@ -38,6 +38,11 @@ if curl -fsSL "https://github.com/patjak/facetimehd/archive/$FACETIMEHD_COMMIT.t
 else
   echo "facetimehd: FAILED" >> "$REPORT"; tail -20 /tmp/facetimehd-build.log >> "$REPORT" 2>/dev/null
 fi
+# keep the camera driver source, so installed Macs can rebuild it for new kernels (eagle-mac-drivers)
+if [ -f "$SRC/dkms.conf" ]; then
+  make -C "/lib/modules/$KVER/build" M="$SRC" clean >/dev/null 2>&1
+  mkdir -p /usr/share/eagle/facetimehd-src && cp -a "$SRC/." /usr/share/eagle/facetimehd-src/
+fi
 rm -rf "$SRC" /tmp/facetimehd-build.log
 
 # --- Remove the build tools again (the built drivers stay in $EXTRA) ---

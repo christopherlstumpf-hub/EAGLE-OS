@@ -1,0 +1,40 @@
+#!/bin/bash
+# EAGLE-OS on an installed Mac: set up automatic rebuilding of the Mac Wi-Fi (wl) and
+# FaceTime camera (facetimehd) drivers, so Debian's Linux security updates can be installed.
+# Runs once when the Mac is online, then lifts the kernel hold that eagle-install put in place.
+set -u
+DONE=/var/lib/eagle/mac-dkms-done
+LOG=/var/log/eagle-mac-drivers.log
+exec >>"$LOG" 2>&1
+echo "== $(date)"
+grep -q "Apple" /sys/class/dmi/id/sys_vendor 2>/dev/null || { echo "not a Mac"; exit 0; }
+[ -d /run/live/medium ] && { echo "running from the stick"; exit 0; }
+[ -f "$DONE" ] && exit 0
+export DEBIAN_FRONTEND=noninteractive
+APT=(apt-get -y -o DPkg::Lock::Timeout=900 -o Dpkg::Options::=--force-confold)
+
+# wait to be online (up to a day, trying every 2 minutes)
+for _ in $(seq 1 720); do "${APT[@]}" update >/dev/null 2>&1 && break; sleep 120; done
+
+# build tools + the Wi-Fi driver source (dkms builds it for every kernel that has headers)
+"${APT[@]}" install --no-install-recommends dkms build-essential linux-headers-amd64 broadcom-sta-dkms || exit 1
+"${APT[@]}" install --no-install-recommends "linux-headers-$(uname -r)" || echo "headers for $(uname -r) not available (fine: the built-in driver covers it)"
+
+# camera driver source -> dkms
+SRC=/usr/share/eagle/facetimehd-src
+if [ -f "$SRC/dkms.conf" ]; then
+  VER=$(sed -n 's/^PACKAGE_VERSION=//p' "$SRC/dkms.conf")
+  rm -rf "/usr/src/facetimehd-$VER"; cp -a "$SRC" "/usr/src/facetimehd-$VER"
+  dkms add -m facetimehd -v "$VER" 2>/dev/null
+  for k in /lib/modules/*; do
+    k=${k##*/}; [ -d "/lib/modules/$k/build" ] && dkms install -m facetimehd -v "$VER" -k "$k"
+  done
+fi
+
+# lift the hold and bring the kernel up to date (dkms builds both drivers for it)
+mapfile -t HELD < <(apt-mark showhold | grep '^linux-image')
+[ "${#HELD[@]}" -gt 0 ] && apt-mark unhold "${HELD[@]}"
+"${APT[@]}" install --no-install-recommends linux-image-amd64 linux-headers-amd64
+update-grub
+mkdir -p /var/lib/eagle && touch "$DONE"
+echo "Mac drivers now rebuild automatically for new kernels"

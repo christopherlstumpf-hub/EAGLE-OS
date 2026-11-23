@@ -181,7 +181,7 @@ if grep -q "Apple" /sys/class/dmi/id/sys_vendor 2>/dev/null; then
   KPKGS=$(chroot "$TARGET" dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'linux-image-*' 2>/dev/null | awk '$1 == "ii" {printf "%s ", $2}')
   # shellcheck disable=SC2086
   chroot "$TARGET" apt-mark hold $KPKGS >>"$LOG" 2>&1
-  echo "Mac: kernel held ($KPKGS)" >> "$LOG"
+  echo "Mac: kernel held until eagle-mac-drivers sets up automatic driver rebuilds ($KPKGS)" >> "$LOG"
 fi
 
 # Startup options that this PC needed from the stick (safe graphics, Legacy-mode fixes) carry over
@@ -195,7 +195,7 @@ echo "carried boot options: ${KEEP:-none}" >> "$LOG"
 # Startup splash, no boot menu
 cat > "$TARGET/etc/default/grub" <<EOF
 # EAGLE-OS
-GRUB_DEFAULT=0
+GRUB_DEFAULT=saved
 GRUB_TIMEOUT=0
 GRUB_TIMEOUT_STYLE=hidden
 GRUB_DISTRIBUTOR="EAGLE-OS"
