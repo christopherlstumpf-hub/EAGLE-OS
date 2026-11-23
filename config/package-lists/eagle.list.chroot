@@ -81,3 +81,6 @@ xterm
 gparted
 ntfs-3g
 exfatprogs
+
+# Intel Atom/Celeron (Bay Trail, Braswell, Cherry Trail) sound chips, e.g. Acer Cloudbook
+firmware-intel-sound

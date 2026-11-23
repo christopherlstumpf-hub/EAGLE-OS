@@ -152,15 +152,23 @@ if [ -d /home/kiosk/.config/eagle ]; then
   chroot "$TARGET" chown -R kiosk:kiosk /home/kiosk/.config 2>>"$LOG"
 fi
 
+# Startup options that this PC needed from the stick (safe graphics, Legacy-mode fixes) carry over
+KEEP=""
+for opt in nomodeset noapic edd=off eagle.safegfx=1; do
+  grep -qw -- "$opt" /proc/cmdline && KEEP="$KEEP $opt"
+done
+KEEP="${KEEP# }"
+echo "carried boot options: ${KEEP:-none}" >> "$LOG"
+
 # Startup splash, no boot menu
-cat > "$TARGET/etc/default/grub" <<'EOF'
+cat > "$TARGET/etc/default/grub" <<EOF
 # EAGLE-OS
 GRUB_DEFAULT=0
 GRUB_TIMEOUT=0
 GRUB_TIMEOUT_STYLE=hidden
 GRUB_DISTRIBUTOR="EAGLE-OS"
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth.use-simpledrm loglevel=3 vt.global_cursor_default=0"
-GRUB_CMDLINE_LINUX=""
+GRUB_CMDLINE_LINUX="$KEEP"
 EOF
 
 # ---------- 5. Bootloader ----------
@@ -177,6 +185,13 @@ if [ "$FIRMWARE" = "uefi" ]; then
     || fail "Couldn't install the bootloader."
   # Also the fallback location, so USB/SD installs and picky firmware still boot
   run chroot "$TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --no-nvram
+  # Some PCs (e.g. Acer Cloudbook) only ever start Windows' boot file: put EAGLE-OS there too,
+  # but only on an internal drive that no longer has Windows on it.
+  case "$(kind_of "$DISK_NAME")" in
+    "USB drive"|"SD card") ;;
+    *) mkdir -p "$TARGET/boot/efi/EFI/Microsoft/Boot"
+       run cp "$TARGET/boot/efi/EFI/BOOT/BOOTX64.EFI" "$TARGET/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi" ;;
+  esac
 else
   echo "grub-pc grub-pc/install_devices multiselect $DISK" | run chroot "$TARGET" debconf-set-selections
   run chroot "$TARGET" sh -c 'dpkg -i /usr/share/eagle/debs/grub-pc_*.deb'

@@ -97,8 +97,10 @@ add_isolinux_entry() {
     END { flush() }' isolinux/live.cfg > isolinux/live.cfg.new && mv isolinux/live.cfg.new isolinux/live.cfg
 }
 if [ -f isolinux/live.cfg ]; then
-  add_isolinux_entry eagle-safegfx "Run EAGLE-OS (safe ^graphics)" "nomodeset vga=791 eagle.safegfx=1"
+  add_isolinux_entry eagle-safegfx "Run EAGLE-OS (safe ^graphics)" "nomodeset vga=791 noapic eagle.safegfx=1"
   add_isolinux_entry eagle-install "^Install EAGLE-OS (wipes a drive)" "eagle.install=1"
+  # Legacy (BIOS) start on some laptops (e.g. Acer Cloudbook) hangs on a black screen without edd=off
+  sed -i -E '/^[[:space:]]*append .*boot=live/ { / edd=off/! s/$/ edd=off/ }' isolinux/live.cfg
   echo "  isolinux entries added"
 fi
 if [ -f isolinux/stdmenu.cfg ]; then

@@ -37,6 +37,20 @@ Both editions have the same setup, EAGLE menu, sound and updates. Lite shows **L
 5. Turn off **Secure Boot** in the BIOS if the stick won't start.
 6. The first start from a USB stick can take 1–3 minutes, longer on old USB 2.0 ports. If the display can't start with your graphics chip, EAGLE-OS switches to software drawing by itself and remembers that.
 
+## Acer Aspire One Cloudbook 14 (AO1-431) and similar Acer laptops
+These start EAGLE-OS reliably only in **UEFI** mode. Set the firmware up once before booting the stick:
+1. Power on and tap **F2** at the Acer logo to open the BIOS setup.
+2. **Main**: set **F12 Boot Menu** to **Enabled**.
+3. **Security**: choose **Set Supervisor Password** and pick one you'll remember. Acer requires one before Secure Boot can be changed.
+4. **Boot**: set **Boot Mode** to **UEFI** and **Secure Boot** to **Disabled**.
+5. Press **F10** to save. Then restart, tap **F12** and choose the USB stick.
+
+Use **EAGLE-OS Lite** on 2 GB models. The installer puts EAGLE-OS on the built-in 32 GB eMMC, which shows as an "SD card" type drive named `mmcblk0`.
+
+If the laptop won't start EAGLE-OS after installing: in the BIOS setup, go to **Security**, choose **Select an UEFI file as trusted for executing**, and pick `EFI/BOOT/BOOTX64.EFI` on the eMMC. Save with **F10**.
+
+If you do start in Legacy mode, EAGLE-OS adds the startup fixes those laptops need. If the screen still stays black, choose **Run EAGLE-OS (safe graphics)**.
+
 ## Installing (wipes a drive)
 You can start the EAGLE installer three ways: from the boot menu, with the orange **Install EAGLE-OS** button on the start page (shown while running from the stick), or from the orange **E** toolbar button.
 
