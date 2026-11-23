@@ -159,7 +159,7 @@ GRUB_DEFAULT=0
 GRUB_TIMEOUT=0
 GRUB_TIMEOUT_STYLE=hidden
 GRUB_DISTRIBUTOR="EAGLE-OS"
-GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 vt.global_cursor_default=0"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth.use-simpledrm loglevel=3 vt.global_cursor_default=0"
 GRUB_CMDLINE_LINUX=""
 EOF
 

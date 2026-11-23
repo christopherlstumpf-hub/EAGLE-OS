@@ -1,7 +1,8 @@
 #!/bin/sh
 # EAGLE-OS boot menu: runs on the finished boot files, just before the ISO is made.
 #  - black chrome splash with "by Stumpf Technology", menu below the logo, orange highlight
-#  - "Run EAGLE-OS" and a new "Install EAGLE-OS (wipes a drive)" that opens the EAGLE installer
+#  - "Run EAGLE-OS", "Install EAGLE-OS (wipes a drive)" (opens the EAGLE installer)
+#    and "Run EAGLE-OS (safe graphics)" (for graphics chips that won't start)
 #  - the Debian installer stays available as "Advanced: Debian installer"
 set -e
 
@@ -38,9 +39,10 @@ find . \( -path ./live -prune \) -o -type f \( -name '*.cfg' -o -name 'theme.txt
     "$f"
 done
 
-# ---- GRUB (UEFI and newer PCs): add "Install EAGLE-OS" right after the first "Run EAGLE-OS" ----
-for f in $(grep -rl 'menuentry "Run EAGLE-OS"' boot/grub 2>/dev/null || true); do
-  awk '
+# ---- GRUB (UEFI and newer PCs): extra entries right after the first "Run EAGLE-OS" ----
+# add_grub_entry FILE "TITLE" HOTKEY "EXTRA KERNEL OPTIONS"
+add_grub_entry() {
+  awk -v title="$2" -v hotkey="$3" -v extra="$4" '
     !done && !inblk && /menuentry "Run EAGLE-OS"/ { inblk = 1; n = 0 }
     inblk { blk[++n] = $0 }
     { print }
@@ -48,12 +50,17 @@ for f in $(grep -rl 'menuentry "Run EAGLE-OS"' boot/grub 2>/dev/null || true); d
       inblk = 0; done = 1
       for (i = 1; i <= n; i++) {
         l = blk[i]
-        if (i == 1) { sub(/"Run EAGLE-OS"/, "\"Install EAGLE-OS (wipes a drive)\"", l); sub(/--hotkey=[a-z]/, "--hotkey=e", l) }
-        if (l ~ /^[[:space:]]*linux/) l = l " eagle.install=1"
+        if (i == 1) { sub(/"Run EAGLE-OS"/, "\"" title "\"", l); sub(/--hotkey=[a-z]/, "--hotkey=" hotkey, l) }
+        if (l ~ /^[[:space:]]*linux/) l = l " " extra
         print l
       }
-    }' "$f" > "$f.new" && mv "$f.new" "$f"
-  echo "  grub install entry: $f"
+    }' "$1" > "$1.new" && mv "$1.new" "$1"
+}
+for f in $(grep -rl 'menuentry "Run EAGLE-OS"' boot/grub 2>/dev/null || true); do
+  # added in reverse: each lands right after "Run EAGLE-OS"
+  add_grub_entry "$f" "Run EAGLE-OS (safe graphics)" g "nomodeset eagle.safegfx=1"
+  add_grub_entry "$f" "Install EAGLE-OS (wipes a drive)" e "eagle.install=1"
+  echo "  grub entries added: $f"
 done
 
 # Keep the GRUB menu below the logo
@@ -64,9 +71,10 @@ find boot/grub -name theme.txt 2>/dev/null | while read -r f; do
   }' "$f"
 done
 
-# ---- ISOLINUX (older BIOS PCs): same new entry, menu moved below the logo ----
-if [ -f isolinux/live.cfg ]; then
-  awk '
+# ---- ISOLINUX (older BIOS PCs): same extra entries, menu moved below the logo ----
+# add_isolinux_entry "LABEL" "MENU TITLE" "EXTRA KERNEL OPTIONS"
+add_isolinux_entry() {
+  awk -v name="$1" -v title="$2" -v extra="$3" '
     function flush(   i, l) {
       if (!n) return
       for (i = 1; i <= n; i++) print blk[i]
@@ -74,10 +82,10 @@ if [ -f isolinux/live.cfg ]; then
         print ""
         for (i = 1; i <= n; i++) {
           l = blk[i]
-          if (l ~ /^label /) l = "label eagle-install"
-          else if (l ~ /menu label/) l = "\tmenu label ^Install EAGLE-OS (wipes a drive)"
+          if (l ~ /^label /) l = "label " name
+          else if (l ~ /menu label/) l = "\tmenu label " title
           else if (l ~ /menu default/) continue
-          else if (l ~ /^[[:space:]]*append /) l = l " eagle.install=1"
+          else if (l ~ /^[[:space:]]*append /) l = l " " extra
           print l
         }
         done = 1
@@ -85,9 +93,13 @@ if [ -f isolinux/live.cfg ]; then
       n = 0; islive = 0
     }
     /^label / { flush() }
-    { if (/^label / || n) { blk[++n] = $0; if ($0 ~ /Run EAGLE-OS/) islive = 1; next } print }
+    { if (/^label / || n) { blk[++n] = $0; if ($0 ~ /menu label \^?Run EAGLE-OS$/) islive = 1; next } print }
     END { flush() }' isolinux/live.cfg > isolinux/live.cfg.new && mv isolinux/live.cfg.new isolinux/live.cfg
-  echo "  isolinux install entry added"
+}
+if [ -f isolinux/live.cfg ]; then
+  add_isolinux_entry eagle-safegfx "Run EAGLE-OS (safe ^graphics)" "nomodeset eagle.safegfx=1"
+  add_isolinux_entry eagle-install "^Install EAGLE-OS (wipes a drive)" "eagle.install=1"
+  echo "  isolinux entries added"
 fi
 if [ -f isolinux/stdmenu.cfg ]; then
   printf 'menu vshift 13\nmenu rows 9\nmenu margin 6\n' >> isolinux/stdmenu.cfg

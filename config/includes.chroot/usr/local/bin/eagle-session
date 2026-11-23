@@ -11,9 +11,31 @@ rm -f "$REQUEST"
 
 # Old or unsupported graphics chips: draw in software instead of a black screen.
 export WLR_RENDERER_ALLOW_SOFTWARE=1
+RENDERER_FILE="$CONF/renderer"
+if grep -qw 'eagle.safegfx=1' /proc/cmdline; then
+  export WLR_RENDERER=pixman          # "Run EAGLE-OS (safe graphics)" on the boot menu
+elif [ -r "$RENDERER_FILE" ]; then
+  WLR_RENDERER=$(cat "$RENDERER_FILE"); export WLR_RENDERER
+fi
+
+# Runs one full-screen app. If the display can't start with the graphics chip
+# (cage exits within seconds), switch to software drawing, remember it, and retry.
+run_cage() {
+  local start=$SECONDS rc
+  cage -s -- "$@"; rc=$?
+  if [ "$rc" -ne 0 ] && [ $((SECONDS - start)) -lt 6 ] && [ "${WLR_RENDERER:-}" != "pixman" ]; then
+    export WLR_RENDERER=pixman
+    echo pixman > "$RENDERER_FILE"
+    start=$SECONDS
+    cage -s -- "$@"; rc=$?
+  fi
+  # Never spin: if it still fails straight away, wait a moment before the next try.
+  [ "$rc" -ne 0 ] && [ $((SECONDS - start)) -lt 6 ] && sleep 3
+  return "$rc"
+}
 
 screen() {
-  cage -s -- foot --title "EAGLE-OS" "$@"
+  run_cage foot --title "EAGLE-OS" "$@"
 }
 
 # "Install EAGLE-OS (wipes a drive)" was chosen on the boot menu
@@ -34,7 +56,7 @@ if [ ! -f "$CONF/setup-done" ] || ! nm-online --quiet --timeout=15; then
 fi
 
 while true; do
-  cage -s -- /usr/local/bin/eagle-browser
+  run_cage /usr/local/bin/eagle-browser
   if [ -f "$REQUEST" ]; then
     action=$(head -n1 "$REQUEST"); rm -f "$REQUEST"
     screen /usr/local/bin/eagle-setup --action "$action"

@@ -32,8 +32,10 @@ Both editions have the same setup, EAGLE menu, sound and updates. Lite shows **L
 4. Pick from the boot menu:
    - **Run EAGLE-OS**: runs straight from the stick or card without touching the PC. Nothing is saved after shutdown.
    - **Install EAGLE-OS (wipes a drive)**: opens the EAGLE installer right away (see below).
+   - **Run EAGLE-OS (safe graphics)**: use this if you get a black screen with a blinking cursor. It's for graphics chips that won't start normally.
    - **Advanced: Debian installer**: the standard Debian installer, as a fallback.
 5. Turn off **Secure Boot** in the BIOS if the stick won't start.
+6. The first start from a USB stick can take 1–3 minutes, longer on old USB 2.0 ports. If the display can't start with your graphics chip, EAGLE-OS switches to software drawing by itself and remembers that.
 
 ## Installing (wipes a drive)
 You can start the EAGLE installer three ways: from the boot menu, with the orange **Install EAGLE-OS** button on the start page (shown while running from the stick), or from the orange **E** toolbar button.
