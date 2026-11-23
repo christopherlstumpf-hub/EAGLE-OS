@@ -50,7 +50,7 @@ function evTime(e, d) {
 }
 function evRow(e, label) {
   const row = document.createElement("div"); row.className = "ev";
-  const bar = document.createElement("span"); bar.className = "bar"; bar.style.background = calColor(e);
+  const bar = document.createElement("span"); bar.className = "evbar"; bar.style.background = calColor(e);
   const t = document.createElement("span"); t.className = "t"; t.textContent = label;
   const n = document.createElement("span"); n.className = "n"; n.textContent = e.title + (e.location ? " · " + e.location : "");
   row.append(bar, t, n);
