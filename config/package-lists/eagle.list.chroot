@@ -84,3 +84,8 @@ exfatprogs
 
 # Intel Atom/Celeron (Bay Trail, Braswell, Cherry Trail) sound chips, e.g. Acer Cloudbook
 firmware-intel-sound
+
+# Antivirus (ClamAV): definitions updates, scans, real-time watch of Downloads on 4 GB+ PCs
+clamav
+clamav-freshclam
+clamav-daemon

@@ -1,0 +1,12 @@
+[Unit]
+Description=EAGLE-OS antivirus: real-time watch of Downloads (installed PCs with 4 GB+ RAM)
+ConditionPathExists=!/run/live/medium
+After=network-online.target clamav-freshclam.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/eagle-security realtime-start
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

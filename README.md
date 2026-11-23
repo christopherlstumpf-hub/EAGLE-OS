@@ -75,6 +75,7 @@ Click the orange **E** button in Firefox's toolbar, or close Firefox, to open th
 - **Display and screen size**: resolution and text/button size
 - **Sound**: volume, mute, choose speakers, headphones or HDMI, test sound, startup sound on/off
 - **Camera test**: live preview and a microphone level meter
+- **Security (antivirus)**: scan Downloads, all your files or the whole system, update virus definitions, manage quarantine
 - **Disks and partitions (GParted)**: view, resize, format or wipe drives and partitions, including Windows (NTFS) and exFAT drives
 - **Updates**: check for updates, install them now, or turn automatic updates on or off
 - **Install EAGLE-OS on this PC**: shown while running from the stick or card
@@ -86,6 +87,19 @@ The power button also shuts the PC down.
 EAGLE-OS runs on Debian 13. By default it installs Debian's security and regular updates automatically in the background when it's online. You can also update on demand from **Updates** in the EAGLE menu.
 
 If you're running straight from the stick or card (Run EAGLE-OS), updates are lost at restart. Install EAGLE-OS to keep it updated.
+
+## Start page
+Search, quick links and an **Install EAGLE-OS** banner when running from the stick. On the right are a **month calendar** (today in orange, with previous/next month) and a **Security** card showing antivirus status.
+
+## Antivirus
+EAGLE-OS includes ClamAV, the standard open-source antivirus.
+- **Virus definitions** update automatically on installed PCs.
+- **Real-time protection** checks every file saved to Downloads, on installed PCs with 4 GB of RAM or more. It's off on smaller PCs because ClamAV keeps about 1 GB of definitions in memory while watching.
+- **Scheduled scans** of Downloads run daily (weekly on EAGLE-OS Lite), at idle priority so browsing isn't slowed.
+- **On demand:** open **Security** from the orange E button to scan Downloads, all your files or the whole system.
+- **Quarantine:** infected files are moved to a locked folder where they can't be opened, and can be deleted from there.
+
+Running from the USB stick, scans still work, but the definitions (about 250 MB) download into memory each time.
 
 ## Camera
 USB webcams and most built-in laptop cameras (UVC) work in Firefox for video calls; sites ask before using it. Use **Camera test** to check it. Some very new laptops with Intel "IPU6" MIPI cameras aren't supported yet.

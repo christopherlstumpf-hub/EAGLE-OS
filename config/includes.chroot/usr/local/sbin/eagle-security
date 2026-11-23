@@ -1,0 +1,145 @@
+#!/bin/bash
+# EAGLE-OS antivirus (ClamAV). Runs as root (via sudo from the EAGLE Security screen, or systemd).
+#   eagle-security update              download the latest virus definitions
+#   eagle-security scan downloads|home|full
+#   eagle-security scheduled           update + scan Downloads (timer; installed PCs only)
+#   eagle-security realtime-start      watch Downloads in real time (installed PCs with 4 GB+ RAM)
+#   eagle-security status              JSON status (also kept in /var/lib/eagle/security.json)
+#   eagle-security status-text         one-paragraph summary for the Security screen
+#   eagle-security quarantine-list | quarantine-delete
+set -u
+export LC_ALL=C
+
+STATE=/var/lib/eagle/security.json
+Q=/var/lib/eagle/quarantine
+LOG=/var/log/eagle-security.log
+DB=/var/lib/clamav
+DOWNLOADS=/home/kiosk/Downloads
+REALTIME_MIN_KB=3500000          # ~4 GB machines (some RAM is reserved by the hardware)
+
+mkdir -p /var/lib/eagle "$Q"
+chmod 755 /var/lib/eagle; chmod 700 "$Q"
+
+is_live() { [ -d /run/live/medium ]; }
+mem_kb() { awk '/^MemTotal:/ {print $2}' /proc/meminfo; }
+now() { date -Iseconds; }
+has_signatures() { ls "$DB"/main.c[lv]d >/dev/null 2>&1; }
+sig_date() {  # newest definitions file, ISO time
+  local f
+  # shellcheck disable=SC2012  # fixed ClamAV file names
+  f=$(ls -t "$DB"/*.c[lv]d 2>/dev/null | head -n1)
+  [ -n "$f" ] && date -Iseconds -r "$f"
+}
+quarantine_count() { find "$Q" -type f 2>/dev/null | wc -l; }
+realtime_active() { systemctl is-active --quiet eagle-clamonacc.service; }
+
+# set_state key value [key value ...]  (numbers and true/false stay unquoted)
+set_state() {
+  python3 - "$STATE" "$@" <<'PY'
+import json, sys
+path, kv = sys.argv[1], sys.argv[2:]
+try:
+    d = json.load(open(path))
+except Exception:
+    d = {}
+for k, v in zip(kv[0::2], kv[1::2]):
+    if v in ("true", "false"):
+        d[k] = (v == "true")
+    elif v.lstrip("-").isdigit():
+        d[k] = int(v)
+    elif v == "":
+        d[k] = None
+    else:
+        d[k] = v
+json.dump(d, open(path, "w"), indent=1)
+PY
+  chmod 644 "$STATE"
+}
+
+refresh_state() {
+  set_state signatures "$(sig_date)" threats_found "$(quarantine_count)" \
+            realtime "$(realtime_active && echo true || echo false)" live "$(is_live && echo true || echo false)"
+}
+
+update() {
+  echo "$(now) update" >> "$LOG"
+  local was_running=0 rc
+  if systemctl is-active --quiet clamav-freshclam.service; then was_running=1; systemctl stop clamav-freshclam.service; fi
+  nice -n 19 ionice -c3 freshclam --stdout 2>&1 | tee -a "$LOG" | grep -E '^(ERROR|WARNING)|updated|up-to-date|Downloading' | sed 's/^/  /'
+  rc=${PIPESTATUS[0]}
+  [ "$was_running" = 1 ] && systemctl start clamav-freshclam.service
+  # clamd (real-time) picks up new definitions by itself
+  refresh_state
+  return "$rc"
+}
+
+scan() {
+  local kind=${1:-downloads} out found rc
+  local paths=() extra=()
+  case "$kind" in
+    downloads) mkdir -p "$DOWNLOADS"; chown kiosk:kiosk "$DOWNLOADS" 2>/dev/null; paths=("$DOWNLOADS") ;;
+    home)      paths=(/home /tmp /media /mnt) ;;
+    full)      paths=(/)
+               extra=(--exclude-dir='^/proc' --exclude-dir='^/sys' --exclude-dir='^/dev' --exclude-dir='^/run'
+                      --exclude-dir="^$Q" --exclude-dir='^/var/lib/clamav') ;;
+    *) echo "unknown scan: $kind" >&2; return 2 ;;
+  esac
+  if ! has_signatures; then
+    echo "  Getting virus definitions first..."
+    update || { echo "  Couldn't download virus definitions. Check the network."; return 2; }
+  fi
+  echo "$(now) scan $kind" >> "$LOG"
+  out=$(nice -n 19 ionice -c3 clamscan -r -i --move="$Q" --max-filesize=200M --max-scansize=400M \
+        --log="$LOG" "${extra[@]}" "${paths[@]}" 2>/dev/null)
+  rc=$?
+  echo "$out" | grep -E 'FOUND$' | sed 's/^/  /'
+  found=$(echo "$out" | awk -F': ' '/^Infected files:/ {print $2}')
+  set_state last_scan "$(now)" last_scan_kind "$kind" last_scan_threats "${found:-0}"
+  refresh_state
+  echo "SCAN_RESULT kind=$kind infected=${found:-0} rc=$rc"
+  [ "$rc" -le 1 ]
+}
+
+realtime_start() {
+  if is_live || [ "$(mem_kb)" -lt "$REALTIME_MIN_KB" ]; then
+    set_state realtime false; return 0
+  fi
+  has_signatures || { set_state realtime false; return 0; }
+  mkdir -p "$DOWNLOADS"; chown kiosk:kiosk "$DOWNLOADS" 2>/dev/null
+  systemctl start clamav-daemon.service
+  for _ in $(seq 1 60); do [ -S /run/clamav/clamd.ctl ] && break; sleep 2; done
+  systemctl start eagle-clamonacc.service
+  refresh_state
+}
+
+status_json() { refresh_state; cat "$STATE"; }
+
+status_text() {
+  refresh_state >/dev/null
+  python3 - "$STATE" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+def t(v): return v.replace("T", " ")[:16] if v else "never"
+lines = []
+lines.append("Real-time protection: " + ("ON (watching Downloads)" if d.get("realtime") else
+             ("off (running from USB)" if d.get("live") else "off on this PC (needs 4 GB RAM); scheduled scans are on")))
+lines.append("Virus definitions: " + (t(d.get("signatures")) if d.get("signatures") else "not downloaded yet"))
+last = d.get("last_scan")
+lines.append("Last scan: " + (t(last) + " (" + str(d.get("last_scan_kind") or "") + ", " +
+             str(d.get("last_scan_threats") or 0) + " found)" if last else "never"))
+lines.append("Quarantined files: " + str(d.get("threats_found") or 0))
+print("\n".join(lines))
+PY
+}
+
+case "${1:-}" in
+  update)            update ;;
+  scan)              scan "${2:-downloads}" ;;
+  scheduled)         is_live && exit 0; update >/dev/null 2>&1; realtime_start; scan downloads >/dev/null ;;
+  realtime-start)    realtime_start ;;
+  status)            status_json ;;
+  status-text)       status_text ;;
+  quarantine-list)   find "$Q" -type f -printf '%TY-%Tm-%Td %TH:%TM  %f\n' 2>/dev/null | sort -r ;;
+  quarantine-delete) find "$Q" -type f -delete; refresh_state ;;
+  *) sed -n '2,10p' "$0" >&2; exit 2 ;;
+esac

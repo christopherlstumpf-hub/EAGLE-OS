@@ -1,0 +1,10 @@
+[Unit]
+Description=EAGLE-OS antivirus: on-access scanning of Downloads (ClamAV clamonacc)
+Requires=clamav-daemon.service
+After=clamav-daemon.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/clamonacc -F --fdpass --move=/var/lib/eagle/quarantine --log=/var/log/eagle-security.log
+Restart=on-failure
+RestartSec=30

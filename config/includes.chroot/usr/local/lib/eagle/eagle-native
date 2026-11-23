@@ -8,7 +8,7 @@ Firefox is closed; the session opens that screen, then reopens Firefox.
 """
 import json, os, struct, subprocess, sys
 
-SCREENS = {"wifi", "display", "sound", "disks", "updates", "install", "menu"}
+SCREENS = {"wifi", "display", "sound", "disks", "security", "updates", "install", "menu"}
 REQUEST = os.path.expanduser("~/.config/eagle/request")
 
 
@@ -36,6 +36,22 @@ def main():
         except OSError:
             variant = "standard"
         send({"ok": True, "live": live, "variant": variant})
+    elif action == "security_status":
+        try:
+            st = json.load(open("/var/lib/eagle/security.json"))
+        except (OSError, ValueError):
+            st = {}
+        try:
+            newest = max(os.path.getmtime(os.path.join("/var/lib/clamav", f))
+                         for f in os.listdir("/var/lib/clamav") if f.endswith((".cvd", ".cld")))
+            import datetime
+            st["signatures"] = datetime.datetime.fromtimestamp(newest).astimezone().isoformat(timespec="seconds")
+        except (OSError, ValueError):
+            pass
+        st["realtime"] = subprocess.run(["systemctl", "is-active", "--quiet", "eagle-clamonacc.service"]).returncode == 0
+        st["live"] = live
+        st["ok"] = True
+        send(st)
     elif action in SCREENS:
         if action == "install" and not live:
             send({"ok": False, "error": "EAGLE-OS is already installed."})

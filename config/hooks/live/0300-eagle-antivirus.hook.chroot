@@ -1,0 +1,29 @@
+#!/bin/sh
+# EAGLE-OS antivirus setup (ClamAV)
+set -e
+chmod 0755 /usr/local/sbin/eagle-security
+
+# clamd + on-access scanning start only when eagle-realtime decides the PC can afford it
+systemctl disable clamav-daemon.service 2>/dev/null || true
+systemctl disable clamav-daemon.socket 2>/dev/null || true
+systemctl disable clamav-clamonacc.service 2>/dev/null || true
+systemctl enable clamav-freshclam.service
+systemctl enable eagle-security-scan.timer eagle-realtime.service
+
+# On-access scanning: watch the Downloads folder
+CONF=/etc/clamav/clamd.conf
+if [ -f "$CONF" ] && ! grep -q '^OnAccessIncludePath' "$CONF"; then
+  cat >> "$CONF" <<'CONFEOF'
+# EAGLE-OS real-time protection
+OnAccessIncludePath /home/kiosk/Downloads
+OnAccessExcludeUname clamav
+OnAccessExcludeRootUID yes
+OnAccessPrevention no
+CONFEOF
+fi
+
+install -d -o kiosk -g kiosk /home/kiosk/Downloads
+install -d -m 0755 /var/lib/eagle
+install -d -m 0700 /var/lib/eagle/quarantine
+printf '{\n "realtime": false,\n "signatures": null,\n "last_scan": null,\n "threats_found": 0\n}\n' > /var/lib/eagle/security.json
+chmod 0644 /var/lib/eagle/security.json

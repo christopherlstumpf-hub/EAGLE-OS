@@ -1,7 +1,7 @@
 """Generates the EAGLE-OS art: chrome lettering on black, orange accent, Stumpf Technology byline.
 
     python3 make_logo.py OUTDIR            # standard edition
-    python3 make_logo.py OUTDIR LITE       # Lite edition (orange LITE under the logo)
+    python3 make_logo.py OUTDIR LITE --no-byline   # Lite edition (orange LITE under the logo, no byline)
 
 Writes:
   splash-1920x1080.png / splash-1024x768.png / splash-640x480.png   centered (start page, previews)
@@ -73,15 +73,18 @@ def centered_text(draw, W, y, text, font, fill):
     return y + (b[3] - b[1])
 
 
+BYLINE_ON = True
+
+
 def lockup(text_h, subtitle=None):
-    """Logo + orange rule + optional LITE + byline, on transparent background."""
+    """Logo + orange rule + optional LITE + byline (unless --no-byline), on transparent background."""
     logo = chrome_text("EAGLE-OS", text_h)
     gap = max(6, text_h // 12)
     rule_h = max(3, text_h // 40)
     sub_font = ImageFont.truetype(FONT, max(14, text_h // 3)) if subtitle else None
     by_font = byline_font(max(12, text_h // 5))
     sub_h = (sub_font.getbbox(subtitle)[3] - sub_font.getbbox(subtitle)[1] + gap) if subtitle else 0
-    by_h = by_font.getbbox(BYLINE)[3] - by_font.getbbox(BYLINE)[1]
+    by_h = (by_font.getbbox(BYLINE)[3] - by_font.getbbox(BYLINE)[1]) if BYLINE_ON else 0
     H = logo.height + gap + rule_h + gap + sub_h + gap + by_h + gap
     W = logo.width
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -93,8 +96,9 @@ def lockup(text_h, subtitle=None):
     y += rule_h + gap
     if subtitle:
         y = centered_text(d, W, y, subtitle, sub_font, ORANGE + (255,)) + gap
-    centered_text(d, W, y + gap // 2, BYLINE, by_font, GREY + (255,))
-    return img
+    if BYLINE_ON:
+        centered_text(d, W, y + gap // 2, BYLINE, by_font, GREY + (255,))
+    return img.crop(img.getbbox()) if not BYLINE_ON else img
 
 
 def compose(size, text_h, out, subtitle=None, center_y=0.5):
@@ -121,8 +125,10 @@ def icon(size, out):
 
 
 if __name__ == "__main__":
-    out = sys.argv[1]
-    sub = sys.argv[2] if len(sys.argv) > 2 else None
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    BYLINE_ON = "--no-byline" not in sys.argv
+    out = args[0]
+    sub = args[1] if len(args) > 1 else None
     os.makedirs(out, exist_ok=True)
     compose((1920, 1080), 230, f"{out}/splash-1920x1080.png", sub)
     compose((1024, 768), 140, f"{out}/splash-1024x768.png", sub)

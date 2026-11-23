@@ -1,0 +1,12 @@
+[Unit]
+Description=EAGLE-OS antivirus: update definitions and scan Downloads
+ConditionPathExists=!/run/live/medium
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/eagle-security scheduled
+Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle

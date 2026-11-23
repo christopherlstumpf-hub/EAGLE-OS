@@ -2,7 +2,7 @@
 # EAGLE-OS setup and menu screen (runs in a full-screen terminal under cage).
 #   eagle-setup --first-run   welcome, Wi-Fi, display, sound, then start browsing
 #   eagle-setup --menu        shown when Firefox is closed: adds Updates / Install / Restart / Shut down
-#   eagle-setup --action X    open one screen (wifi, display, sound, disks, updates, install, menu) and return
+#   eagle-setup --action X    open one screen (wifi, display, sound, disks, security, updates, install, menu) and return
 
 MODE_ARG="${1:---menu}"
 ACTION_ARG="${2:-}"
@@ -42,7 +42,7 @@ pick_output() {
   fi
   if [ "${#outs[@]}" -eq 1 ]; then OUTPUT="${outs[0]}"; return 0; fi
   for o in "${outs[@]}"; do items+=("$o" ""); done
-  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
+  OUTPUT=$(whiptail --title "$TITLE · Display" --menu "Which screen?" $H $W 11 "${items[@]}" 3>&1 1>&2 2>&3) || return 1
 }
 
 pick_resolution() {
@@ -64,7 +64,7 @@ pick_resolution() {
     return
   fi
   local choice
-  choice=$(whiptail --title "$TITLE · Display" --menu "Choose a screen resolution:" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  choice=$(whiptail --title "$TITLE · Display" --menu "Choose a screen resolution:" $H $W 11 "${items[@]}" 3>&1 1>&2 2>&3) || return
   wlr-randr --output "$OUTPUT" --mode "$choice" 2>/dev/null
   if whiptail --title "$TITLE · Display" --yesno "Keep this resolution?" 8 $W; then
     MODE="$choice"; save_display
@@ -125,7 +125,7 @@ pick_output_device() {
     whiptail --title "$TITLE · Sound" --msgbox "No speakers or headphones were found on this PC." 8 $W
     return
   fi
-  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || return
+  id=$(whiptail --title "$TITLE · Sound" --menu "Play sound through:" $H $W 11 "${items[@]}" 3>&1 1>&2 2>&3) || return
   wpctl set-default "$id"
 }
 
@@ -212,6 +212,59 @@ disks_gparted() {
   sudo -n /usr/local/sbin/eagle-gparted "${WAYLAND_DISPLAY:-}" "${XDG_RUNTIME_DIR:-}" "${DISPLAY:-}" >/dev/null 2>&1
 }
 
+# ---------- Security (antivirus) ----------
+security_scan() { # $1 = downloads | home | full
+  local label=$1 out found
+  case "$1" in downloads) label="your Downloads folder" ;; home) label="all your files" ;; full) label="the whole system (this can take an hour)" ;; esac
+  clear
+  printf '\n  \033[1;33mEAGLE-OS Security\033[0m\n\n  Scanning %s...\n  Please wait. Infected files are moved to quarantine.\n\n' "$label"
+  out=$(sudo -n /usr/local/sbin/eagle-security scan "$1" 2>&1 | tee /dev/tty)
+  found=$(echo "$out" | sed -n 's/.*SCAN_RESULT .*infected=\([0-9]*\).*/\1/p' | tail -n1)
+  if [ -z "$found" ]; then
+    whiptail --title "$TITLE · Security" --msgbox "The scan didn't finish. Check the network (virus definitions are needed) and try again." 9 $W
+  elif [ "$found" = "0" ]; then
+    whiptail --title "$TITLE · Security" --msgbox "Scan complete: no threats found." 8 $W
+  else
+    whiptail --title "$TITLE · Security" --msgbox "Scan complete: $found threat(s) found and moved to quarantine.\n\nThey can't run or be opened there. You can delete them from Quarantine." 11 $W
+  fi
+}
+
+security_menu() {
+  local choice summary qn
+  while true; do
+    summary=$(sudo -n /usr/local/sbin/eagle-security status-text 2>/dev/null)
+    qn=$(sudo -n /usr/local/sbin/eagle-security quarantine-list 2>/dev/null | wc -l)
+    choice=$(whiptail --title "$TITLE · Security" --menu "$summary" 22 $W 7 \
+      downloads "Scan Downloads now" \
+      home      "Scan all my files" \
+      full      "Full system scan (slow)" \
+      update    "Update virus definitions" \
+      quarantine "Quarantine ($qn file(s))" \
+      "back"    "Back" 3>&1 1>&2 2>&3) || return
+    case "$choice" in
+      downloads|home|full)
+        if is_live && ! sudo -n /usr/local/sbin/eagle-security status 2>/dev/null | grep -q '"signatures": "'; then
+          whiptail --title "$TITLE · Security" --yesno "EAGLE-OS is running from the USB stick, so the virus definitions (about 250 MB) will download into memory and be lost at restart.\n\nContinue?" 11 $W || continue
+        fi
+        security_scan "$choice" ;;
+      update)
+        clear; printf '\n  \033[1;33mEAGLE-OS Security\033[0m\n\n  Updating virus definitions...\n\n'
+        if sudo -n /usr/local/sbin/eagle-security update; then
+          whiptail --title "$TITLE · Security" --msgbox "Virus definitions are up to date." 8 $W
+        else
+          whiptail --title "$TITLE · Security" --msgbox "Couldn't update the virus definitions. Check the network and try again." 9 $W
+        fi ;;
+      quarantine)
+        if [ "$qn" -eq 0 ]; then
+          whiptail --title "$TITLE · Security" --msgbox "Quarantine is empty." 8 $W
+        elif whiptail --title "$TITLE · Security" --yesno "Quarantined files:\n\n$(sudo -n /usr/local/sbin/eagle-security quarantine-list | head -n 10)\n\nDelete them permanently?" 20 $W; then
+          sudo -n /usr/local/sbin/eagle-security quarantine-delete
+        fi ;;
+      *) return ;;
+    esac
+  done
+}
+
 # ---------- Install ----------
 is_live() { [ -d /run/live/medium ]; }
 install_eagle() { sudo -n /usr/local/sbin/eagle-install; }
@@ -223,6 +276,7 @@ if [ "$MODE_ARG" = "--action" ]; then
     display) display_setup ;;
     sound)   sound_menu ;;
     disks)   disks_gparted ;;
+    security) security_menu ;;
     updates) updates_menu ;;
     install) install_eagle ;;
     *)       MODE_ARG="--menu" ;;
@@ -237,7 +291,7 @@ fi
 while true; do
   items=(browse "Start browsing" wifi "Wi-Fi and network" display "Display and screen size" sound "Sound")
   if [ "$MODE_ARG" = "--menu" ]; then
-    items+=(disks "Disks and partitions (GParted)" updates "Updates")
+    items+=(security "Security (antivirus)" disks "Disks and partitions (GParted)" updates "Updates")
   fi
   if is_live; then
     items+=(install "Install EAGLE-OS on this PC (wipes a drive)")
@@ -245,12 +299,13 @@ while true; do
   if [ "$MODE_ARG" = "--menu" ]; then
     items+=(restart "Restart" shutdown "Shut down")
   fi
-  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 10 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
+  choice=$(whiptail --title "$TITLE" --menu "$(net_status)" $H $W 11 "${items[@]}" 3>&1 1>&2 2>&3) || choice=browse
   case "$choice" in
     wifi)     wifi_setup ;;
     display)  display_setup ;;
     sound)    sound_menu ;;
     disks)    disks_gparted ;;
+    security) security_menu ;;
     updates)  updates_menu ;;
     install)  install_eagle ;;
     restart)  systemctl reboot; exit 0 ;;

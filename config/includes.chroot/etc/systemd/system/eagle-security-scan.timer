@@ -1,0 +1,10 @@
+[Unit]
+Description=EAGLE-OS antivirus scheduled scan
+
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=1d
+Persistent=false
+
+[Install]
+WantedBy=timers.target
