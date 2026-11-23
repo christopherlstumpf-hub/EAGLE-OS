@@ -1,0 +1,18 @@
+/* EAGLE-OS: make the orange E (EAGLE-OS menu) toolbar button larger and easier to hit. */
+#menu_eagle-os-browser-action .toolbarbutton-icon,
+#menu_eagle-os-browser-action .toolbarbutton-badge-stack image {
+  width: 34px !important;
+  height: 34px !important;
+}
+#menu_eagle-os-browser-action .toolbarbutton-badge-stack,
+#menu_eagle-os-browser-action > .toolbarbutton-icon {
+  padding: 3px !important;
+  border-radius: 50% !important;
+}
+#menu_eagle-os-browser-action:hover .toolbarbutton-badge-stack,
+#menu_eagle-os-browser-action[open] .toolbarbutton-badge-stack {
+  background-color: rgba(255, 122, 0, 0.25) !important;
+}
+#menu_eagle-os-browser-action {
+  margin-inline: 4px !important;
+}

@@ -27,6 +27,8 @@ if [ -n "${WAYLAND_DISPLAY:-}" ]; then export MOZ_ENABLE_WAYLAND=1; else unset M
 PROFILE="$HOME/.eagle-profile"
 mkdir -p "$PROFILE"
 cp -f /etc/eagle/base-user.js "$PROFILE/user.js"
+mkdir -p "$PROFILE/chrome"
+cp -f /etc/eagle/userChrome.css "$PROFILE/chrome/userChrome.css"
 VARIANT=$(cat /etc/eagle/variant 2>/dev/null || echo standard)
 mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
 if [ "$VARIANT" = "lite" ] || [ "${mem_kb:-0}" -le 4194304 ]; then

@@ -16,3 +16,5 @@ user_pref("browser.shell.checkDefaultBrowser", false);
 user_pref("layout.css.prefers-color-scheme.content-override", 0); // dark mode for websites that support it
 user_pref("ui.systemUsesDarkTheme", 1);
 user_pref("widget.content.allow-gtk-dark-theme", true);
+// Allow the EAGLE-OS toolbar style (larger orange E button)
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
