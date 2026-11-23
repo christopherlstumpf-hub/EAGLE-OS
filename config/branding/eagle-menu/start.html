@@ -27,6 +27,28 @@
   .tiles a { display:block; text-align:center; padding:18px 10px; border-radius:10px; text-decoration:none;
     color:var(--text); background:var(--panel); border:1px solid var(--grey); font-size:15px; }
   .tiles a:hover, .tiles a:focus { border-color:var(--orange); color:#fff; outline:none; }
+  .tiles .tile { position:relative; }
+  .tiles .tile a { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tiles .add-tile a { border-style:dashed; color:var(--orange); font-weight:700; }
+  .tiles .remove { display:none; position:absolute; top:-8px; right:-8px; width:26px; height:26px; padding:0;
+    border-radius:50%; background:var(--orange); color:#000; font-size:15px; line-height:26px; font-weight:800; }
+  html.editing .tiles .removable .remove { display:block; }
+  html.editing .tiles .removable a { border-color:var(--orange); }
+  html.editing .tiles .fixed a { opacity:.55; }
+  .tile-tools { display:flex; gap:10px; margin-top:-12px; }
+  .tool-btn { font-size:13px; font-weight:600; padding:6px 14px; border-radius:8px; background:var(--panel); color:var(--dim);
+    border:1px solid var(--grey); }
+  .tool-btn:hover, .tool-btn:focus { color:#fff; border-color:var(--orange); outline:none; }
+  html.editing #edit-links { background:var(--orange); color:#000; border-color:var(--orange); }
+  .add-form { width:min(520px, 90vw); background:var(--panel); border:2px solid var(--orange); border-radius:12px; padding:16px;
+    display:flex; flex-direction:column; gap:10px; }
+  .add-form[hidden] { display:none; }
+  .add-title { font-weight:700; color:#fff; }
+  .add-form input { font-size:16px; padding:10px 12px; border-radius:8px; border:1px solid var(--grey); background:#0f0f0f; color:#fff; outline:none; }
+  .add-form input:focus { border-color:var(--orange); }
+  .add-actions { display:flex; gap:10px; }
+  .add-save { border-radius:8px; padding:8px 20px; }
+  .add-error { color:#ff9a7a; font-size:13px; min-height:1em; }
   .tip { color:var(--dim); font-size:13px; text-align:center; }
   .tip b { color:var(--orange); font-weight:600; }
   .byline { color:var(--dim); font-size:12px; letter-spacing:.04em; }
@@ -83,17 +105,20 @@
     <input type="search" name="q" placeholder="Search the web" autofocus aria-label="Search the web">
     <button type="submit">Search</button>
   </form>
-  <nav class="tiles">
-    <a href="https://www.google.com">Google</a>
-    <a href="https://mail.google.com">Gmail</a>
-    <a href="https://www.youtube.com">YouTube</a>
-    <a href="https://maps.google.com">Maps</a>
-    <a href="https://news.google.com">News</a>
-    <a href="https://weather.com">Weather</a>
-    <a href="camera.html">Camera test</a>
-    <a href="#" data-eagle-action="wifi">Wi-Fi</a>
-    <a href="#" data-eagle-action="menu">EAGLE menu</a>
-  </nav>
+  <nav class="tiles" id="tiles" aria-label="Links"></nav>
+  <div class="tile-tools">
+    <button type="button" id="edit-links" class="tool-btn">Edit links</button>
+  </div>
+  <form class="add-form" id="add-form" hidden>
+    <div class="add-title">Add a link</div>
+    <input type="text" id="add-name" placeholder="Name, e.g. Facebook" maxlength="24" required>
+    <input type="text" id="add-url" placeholder="Web address, e.g. facebook.com" required>
+    <div class="add-actions">
+      <button type="submit" class="add-save">Add</button>
+      <button type="button" class="tool-btn" id="add-cancel">Cancel</button>
+    </div>
+    <div class="add-error" id="add-error"></div>
+  </form>
   <div class="tip">The orange <b>E</b> button in the toolbar opens <b>Wi-Fi</b>, <b>Display</b>, <b>Sound</b>, <b>Date and time</b>, <b>Screensaver</b>, <b>Camera</b>, <b>Security</b>, <b>Updates</b>, <b>Restart</b> and <b>Shut down</b>.</div>
   <div class="byline">EAGLE-OS by Stumpf Technology</div>
 </main>

@@ -11,12 +11,12 @@ function eagle(action) {
   const status = (await eagle("status")) || {};
   document.documentElement.dataset.eagle = "ready";
   if (status.live) document.documentElement.dataset.live = "yes";
-  for (const el of document.querySelectorAll("[data-eagle-action]")) {
-    el.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      eagle(el.dataset.eagleAction);
-    });
-  }
+  document.addEventListener("click", (ev) => {
+    const el = ev.target.closest("[data-eagle-action]");
+    if (!el) return;
+    ev.preventDefault();
+    eagle(el.dataset.eagleAction);
+  });
 })();
 
 // ---------- Clock ----------
@@ -140,3 +140,105 @@ setInterval(renderSecurity, 5 * 60 * 1000);
     "Return to start page: " + (s.timeoutMin ? `${s.timeoutMin} min` : "off"),
   ]) { const d = document.createElement("div"); d.textContent = t; lines.appendChild(d); }
 })();
+
+// ---------- Link buttons: six fixed + your own (add / remove) ----------
+const FIXED_LINKS = [
+  { title: "Google", url: "https://www.google.com" },
+  { title: "Gmail", url: "https://mail.google.com" },
+  { title: "YouTube", url: "https://www.youtube.com" },
+  { title: "Maps", url: "https://maps.google.com" },
+  { title: "News", url: "https://news.google.com" },
+  { title: "Weather", url: "https://weather.com" },
+];
+const STARTER_LINKS = [
+  { title: "Camera test", url: "camera.html" },
+  { title: "Wi-Fi", action: "wifi" },
+  { title: "EAGLE menu", action: "menu" },
+];
+const MAX_LINKS = 24;
+let myLinks = [];
+
+async function loadLinks() {
+  try {
+    const s = await browser.storage.local.get({ links: null });
+    myLinks = Array.isArray(s.links) ? s.links : STARTER_LINKS.slice();
+  } catch (e) { myLinks = STARTER_LINKS.slice(); }
+}
+async function saveLinks() { try { await browser.storage.local.set({ links: myLinks }); } catch (e) { /* ignore */ } }
+
+function tile(link, cls, index) {
+  const wrap = document.createElement("div");
+  wrap.className = "tile " + cls;
+  const a = document.createElement("a");
+  a.textContent = link.title;
+  a.title = link.url || link.title;
+  if (link.action) { a.href = "#"; a.dataset.eagleAction = link.action; }
+  else a.href = link.url;
+  wrap.appendChild(a);
+  if (cls === "removable") {
+    const x = document.createElement("button");
+    x.type = "button"; x.className = "remove"; x.textContent = "✕";
+    x.setAttribute("aria-label", "Remove " + link.title);
+    x.addEventListener("click", async (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      myLinks.splice(index, 1);
+      await saveLinks();
+      renderTiles();
+    });
+    wrap.appendChild(x);
+  }
+  return wrap;
+}
+
+function renderTiles() {
+  const box = document.getElementById("tiles");
+  box.textContent = "";
+  FIXED_LINKS.forEach((l) => box.appendChild(tile(l, "fixed")));
+  myLinks.forEach((l, i) => box.appendChild(tile(l, "removable", i)));
+  if (myLinks.length < MAX_LINKS) {
+    const add = tile({ title: "+ Add link" }, "add-tile");
+    add.querySelector("a").href = "#";
+    add.querySelector("a").addEventListener("click", (ev) => { ev.preventDefault(); openAddForm(); });
+    box.appendChild(add);
+  }
+}
+
+function normaliseUrl(text) {
+  let t = text.trim();
+  if (!t) return null;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(t)) t = "https://" + t;
+  try {
+    const u = new URL(t);
+    if (!["http:", "https:"].includes(u.protocol) || !u.hostname.includes(".")) return null;
+    return u.href;
+  } catch (e) { return null; }
+}
+
+function openAddForm() {
+  const f = document.getElementById("add-form");
+  f.hidden = false;
+  document.getElementById("add-error").textContent = "";
+  document.getElementById("add-name").value = "";
+  document.getElementById("add-url").value = "";
+  document.getElementById("add-name").focus();
+}
+
+document.getElementById("add-cancel").addEventListener("click", () => { document.getElementById("add-form").hidden = true; });
+document.getElementById("add-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const name = document.getElementById("add-name").value.trim();
+  const url = normaliseUrl(document.getElementById("add-url").value);
+  const err = document.getElementById("add-error");
+  if (!name) { err.textContent = "Give the link a name."; return; }
+  if (!url) { err.textContent = "That web address doesn't look right. Try something like facebook.com"; return; }
+  myLinks.push({ title: name.slice(0, 24), url });
+  await saveLinks();
+  document.getElementById("add-form").hidden = true;
+  renderTiles();
+});
+document.getElementById("edit-links").addEventListener("click", () => {
+  const on = document.documentElement.classList.toggle("editing");
+  document.getElementById("edit-links").textContent = on ? "Done" : "Edit links";
+});
+
+loadLinks().then(renderTiles);

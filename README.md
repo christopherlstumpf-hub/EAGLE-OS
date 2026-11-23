@@ -90,7 +90,9 @@ EAGLE-OS runs on Debian 13. By default it installs Debian's security and regular
 If you're running straight from the stick or card (Run EAGLE-OS), updates are lost at restart. Install EAGLE-OS to keep it updated.
 
 ## Start page
-Search, quick links and an **Install EAGLE-OS** banner when running from the stick. On the right are a **month calendar** (today in orange, with previous/next month and a **Set date and time** link) and a **Security** card showing antivirus status. The default time zone is US Eastern; change it under **Date and time**.
+Search, link buttons and an **Install EAGLE-OS** banner when running from the stick.
+
+**Link buttons:** Google, Gmail, YouTube, Maps, News and Weather are always there. Use **+ Add link** for your own sites (a name and a web address like `facebook.com`). Turn on **Edit links** to show a ✕ that removes them. Camera test, Wi-Fi and EAGLE menu start as removable links. Your links are kept on installed PCs; running from the stick they reset at restart. On the right are a **month calendar** (today in orange, with previous/next month and a **Set date and time** link) and a **Security** card showing antivirus status. The default time zone is US Eastern; change it under **Date and time**.
 
 ## Screen timeout and screensaver
 Open **Screen timeout and screensaver** from the orange E button or the start page's Screensaver card.
