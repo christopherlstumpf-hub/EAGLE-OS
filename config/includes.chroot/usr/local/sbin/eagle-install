@@ -148,7 +148,7 @@ if [ -d /etc/NetworkManager/system-connections ]; then
 fi
 if [ -d /home/kiosk/.config/eagle ]; then
   mkdir -p "$TARGET/home/kiosk/.config/eagle"
-  cp -a /home/kiosk/.config/eagle/display /home/kiosk/.config/eagle/setup-done "$TARGET/home/kiosk/.config/eagle/" 2>/dev/null
+  cp -a /home/kiosk/.config/eagle/display /home/kiosk/.config/eagle/setup-done /home/kiosk/.config/eagle/startup-sound-off "$TARGET/home/kiosk/.config/eagle/" 2>/dev/null
   chroot "$TARGET" chown -R kiosk:kiosk /home/kiosk/.config 2>>"$LOG"
 fi
 

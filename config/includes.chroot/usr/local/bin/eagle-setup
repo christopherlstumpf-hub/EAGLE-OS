@@ -130,22 +130,30 @@ pick_output_device() {
 }
 
 sound_menu() {
-  local choice
+  local choice chime
   while true; do
-    choice=$(whiptail --title "$TITLE · Sound" --menu "Volume: $(sound_volume)" $H $W 7 \
-      up     "Volume up" \
-      down   "Volume down" \
-      mute   "Mute / unmute" \
-      output "Speakers, headphones or HDMI" \
-      test   "Play a test sound" \
-      "back" "Back" 3>&1 1>&2 2>&3) || return
+    if [ -f "$CONF/startup-sound-off" ]; then chime="Startup sound: OFF (turn on)"; else chime="Startup sound: ON (turn off)"; fi
+    choice=$(whiptail --title "$TITLE · Sound" --menu "Volume: $(sound_volume)" $H $W 8 \
+      up      "Volume up" \
+      down    "Volume down" \
+      mute    "Mute / unmute" \
+      output  "Speakers, headphones or HDMI" \
+      test    "Play a test sound" \
+      startup "$chime" \
+      "back"  "Back" 3>&1 1>&2 2>&3) || return
     case "$choice" in
       up)     wpctl set-mute @DEFAULT_AUDIO_SINK@ 0; wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 10%+ ;;
       down)   wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%- ;;
       mute)   wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
       output) pick_output_device ;;
-      test)   pw-play /usr/share/sounds/alsa/Front_Center.wav 2>/dev/null \
+      test)   pw-play /usr/share/eagle/sounds/startup.wav 2>/dev/null \
                 || whiptail --title "$TITLE · Sound" --msgbox "Couldn't play the test sound." 8 $W ;;
+      startup)
+        if [ -f "$CONF/startup-sound-off" ]; then
+          rm -f "$CONF/startup-sound-off"; pw-play /usr/share/eagle/sounds/startup.wav 2>/dev/null &
+        else
+          touch "$CONF/startup-sound-off"
+        fi ;;
       *)      return ;;
     esac
   done

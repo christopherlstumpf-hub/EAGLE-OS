@@ -48,7 +48,7 @@ You can start the EAGLE installer three ways: from the boot menu, with the orang
 To carry EAGLE-OS with you, install it onto a second USB stick or microSD card.
 
 ## First start
-1. The EAGLE-OS splash appears: chrome letters on black with an orange progress bar.
+1. The EAGLE-OS splash appears, and the EAGLE startup chime plays as the session comes up (it can be turned off under Sound): chrome letters on black with an orange progress bar.
 2. **Setup** opens: Wi-Fi, Display (resolution and text size), Sound.
 3. Choose **Start browsing** and Firefox opens on the EAGLE start page.
 
@@ -59,7 +59,7 @@ Click the orange **E** button in Firefox's toolbar, or close Firefox, to open th
 - **Start browsing**
 - **Wi-Fi and network**
 - **Display and screen size**: resolution and text/button size
-- **Sound**: volume, mute, choose speakers, headphones or HDMI, test sound
+- **Sound**: volume, mute, choose speakers, headphones or HDMI, test sound, startup sound on/off
 - **Camera test**: live preview and a microphone level meter
 - **Disks and partitions (GParted)**: view, resize, format or wipe drives and partitions, including Windows (NTFS) and exFAT drives
 - **Updates**: check for updates, install them now, or turn automatic updates on or off

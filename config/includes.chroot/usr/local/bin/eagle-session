@@ -88,6 +88,18 @@ if [ ! -f "$CONF/setup-done" ]; then
   wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.6 2>/dev/null
 fi
 
+# EAGLE-OS startup chime: once per start (turn it off in the EAGLE menu > Sound).
+if [ ! -f "$CONF/startup-sound-off" ] && [ ! -f /tmp/eagle-startup-sound-played ]; then
+  touch /tmp/eagle-startup-sound-played
+  (
+    for _ in $(seq 1 20); do   # wait up to 10 s for the sound system
+      wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && break
+      sleep 0.5
+    done
+    pw-play --volume 0.8 /usr/share/eagle/sounds/startup.wav
+  ) >/dev/null 2>&1 &
+fi
+
 if [ ! -f "$CONF/setup-done" ] || ! nm-online --quiet --timeout=15; then
   screen /usr/local/bin/eagle-setup --first-run
 fi
