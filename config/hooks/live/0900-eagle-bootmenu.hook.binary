@@ -97,7 +97,7 @@ add_isolinux_entry() {
     END { flush() }' isolinux/live.cfg > isolinux/live.cfg.new && mv isolinux/live.cfg.new isolinux/live.cfg
 }
 if [ -f isolinux/live.cfg ]; then
-  add_isolinux_entry eagle-safegfx "Run EAGLE-OS (safe ^graphics)" "nomodeset eagle.safegfx=1"
+  add_isolinux_entry eagle-safegfx "Run EAGLE-OS (safe ^graphics)" "nomodeset vga=791 eagle.safegfx=1"
   add_isolinux_entry eagle-install "^Install EAGLE-OS (wipes a drive)" "eagle.install=1"
   echo "  isolinux entries added"
 fi

@@ -3,39 +3,76 @@
 # The orange E toolbar button / start page buttons ask for a screen (Wi-Fi, Install, ...):
 # Firefox closes, that screen opens, then Firefox comes back.
 # Closing Firefox yourself opens the EAGLE menu.
+#
+# Display: normally Wayland (cage). If the graphics chip can't start it, EAGLE-OS
+# switches to software drawing; if the PC has no graphics driver at all (no DRM
+# device: very old chips, "safe graphics" on old BIOS PCs), it uses a basic X11
+# display instead (works with any screen).
 
 CONF="$HOME/.config/eagle"
 REQUEST="$CONF/request"
+RENDERER_FILE="$CONF/renderer"
 mkdir -p "$CONF"
-rm -f "$REQUEST"
+
+# ---------- Display mode ----------
+if [ "${1:-}" = "--inside-x" ]; then
+  MODE=x11
+  xset s off -dpms s noblank 2>/dev/null
+  matchbox-window-manager -use_titlebar no -use_cursor yes &
+else
+  rm -f "$REQUEST"
+  # Wait briefly for a graphics device; none means the basic display.
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    ls /dev/dri/card* >/dev/null 2>&1 && break
+    sleep 1
+  done
+  if ! ls /dev/dri/card* >/dev/null 2>&1 || [ "$(cat "$RENDERER_FILE" 2>/dev/null)" = "x11" ]; then
+    exec xinit "$0" --inside-x -- :0 "vt${XDG_VTNR:-7}" -keeptty -nolisten tcp -quiet >/dev/null 2>&1
+  fi
+  MODE=wayland
+fi
 
 # Old or unsupported graphics chips: draw in software instead of a black screen.
 export WLR_RENDERER_ALLOW_SOFTWARE=1
-RENDERER_FILE="$CONF/renderer"
 if grep -qw 'eagle.safegfx=1' /proc/cmdline; then
   export WLR_RENDERER=pixman          # "Run EAGLE-OS (safe graphics)" on the boot menu
-elif [ -r "$RENDERER_FILE" ]; then
-  WLR_RENDERER=$(cat "$RENDERER_FILE"); export WLR_RENDERER
+elif [ "$(cat "$RENDERER_FILE" 2>/dev/null)" = "pixman" ]; then
+  export WLR_RENDERER=pixman
 fi
 
-# Runs one full-screen app. If the display can't start with the graphics chip
-# (cage exits within seconds), switch to software drawing, remember it, and retry.
-run_cage() {
+# Runs one full-screen app.
+#  Wayland: if the display can't start (cage exits within seconds), switch to software
+#  drawing and retry; if that fails too, switch to the basic X11 display for good.
+run_app() {
   local start=$SECONDS rc
-  cage -s -- "$@"; rc=$?
-  if [ "$rc" -ne 0 ] && [ $((SECONDS - start)) -lt 6 ] && [ "${WLR_RENDERER:-}" != "pixman" ]; then
-    export WLR_RENDERER=pixman
-    echo pixman > "$RENDERER_FILE"
-    start=$SECONDS
-    cage -s -- "$@"; rc=$?
+  if [ "$MODE" = "x11" ]; then
+    "$@"; return $?
   fi
-  # Never spin: if it still fails straight away, wait a moment before the next try.
-  [ "$rc" -ne 0 ] && [ $((SECONDS - start)) -lt 6 ] && sleep 3
+  cage -s -- "$@"; rc=$?
+  if [ "$rc" -ne 0 ] && [ $((SECONDS - start)) -lt 6 ]; then
+    if [ "${WLR_RENDERER:-}" != "pixman" ]; then
+      export WLR_RENDERER=pixman
+      echo pixman > "$RENDERER_FILE"
+      start=$SECONDS
+      cage -s -- "$@"; rc=$?
+    fi
+    if [ "$rc" -ne 0 ] && [ $((SECONDS - start)) -lt 6 ]; then
+      echo x11 > "$RENDERER_FILE"
+      exec xinit "$0" --inside-x -- :0 "vt${XDG_VTNR:-7}" -keeptty -nolisten tcp -quiet >/dev/null 2>&1
+    fi
+  fi
   return "$rc"
 }
 
+# Full-screen EAGLE text screens (setup, menu, installer): black / grey / orange.
 screen() {
-  run_cage foot --title "EAGLE-OS" "$@"
+  if [ "$MODE" = "x11" ]; then
+    xterm -fullscreen -fa "DejaVu Sans Mono" -fs 14 -bg black -fg '#d6d6d6' -bc -b 24 \
+      -xrm 'XTerm*color0: #000000' -xrm 'XTerm*color3: #ff7a00' -xrm 'XTerm*color8: #3a3a3a' \
+      -xrm 'XTerm*cursorColor: #ff7a00' -T "EAGLE-OS" -e "$@"
+  else
+    run_app foot --title "EAGLE-OS" "$@"
+  fi
 }
 
 # "Install EAGLE-OS (wipes a drive)" was chosen on the boot menu
@@ -56,7 +93,8 @@ if [ ! -f "$CONF/setup-done" ] || ! nm-online --quiet --timeout=15; then
 fi
 
 while true; do
-  run_cage /usr/local/bin/eagle-browser
+  start=$SECONDS
+  run_app /usr/local/bin/eagle-browser
   if [ -f "$REQUEST" ]; then
     action=$(head -n1 "$REQUEST"); rm -f "$REQUEST"
     screen /usr/local/bin/eagle-setup --action "$action"
@@ -64,4 +102,6 @@ while true; do
     # Firefox was closed (or crashed): show the EAGLE menu, then reopen Firefox.
     screen /usr/local/bin/eagle-setup --menu
   fi
+  # Never spin in a tight loop if something keeps failing straight away.
+  [ $((SECONDS - start)) -lt 3 ] && sleep 3
 done

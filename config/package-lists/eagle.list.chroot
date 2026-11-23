@@ -65,3 +65,14 @@ grub-efi-amd64-bin
 grub2-common
 efibootmgr
 python3
+
+# Basic-display fallback for PCs with no usable graphics driver (no DRM device)
+xserver-xorg-core
+xserver-xorg-video-fbdev
+xserver-xorg-video-vesa
+xserver-xorg-input-libinput
+xserver-xorg-legacy
+xinit
+x11-xserver-utils
+matchbox-window-manager
+xterm

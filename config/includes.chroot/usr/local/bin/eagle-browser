@@ -8,7 +8,7 @@ KIOSK=0
 
 CONF="$HOME/.config/eagle"
 # Saved by eagle-setup: OUTPUT, MODE (e.g. 1366x768@60.000000), SCALE (e.g. 1.25)
-if [ -r "$CONF/display" ]; then
+if [ -r "$CONF/display" ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
   # shellcheck source=/dev/null
   . "$CONF/display"
   if [ -n "${OUTPUT:-}" ]; then
@@ -19,7 +19,8 @@ if [ -r "$CONF/display" ]; then
   fi
 fi
 
-export MOZ_ENABLE_WAYLAND=1
+# Wayland normally; X11 in the basic-display fallback
+if [ -n "${WAYLAND_DISPLAY:-}" ]; then export MOZ_ENABLE_WAYLAND=1; else unset MOZ_ENABLE_WAYLAND; fi
 
 # One fixed profile: EAGLE theme always; low-memory tuning on PCs with 4 GB RAM or less;
 # EAGLE-OS Lite always gets low-memory plus slow-processor tuning.
