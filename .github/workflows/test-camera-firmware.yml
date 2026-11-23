@@ -1,0 +1,27 @@
+# Checks that the FaceTime HD camera firmware can still be downloaded from Apple and extracted
+# (the same steps eagle-facetime-firmware runs on a Mac). Nothing is published.
+name: Test Mac camera firmware download
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["config/includes.chroot/usr/share/eagle/facetimehd-firmware/**", "config/includes.chroot/usr/local/sbin/eagle-facetime-firmware", ".github/workflows/test-camera-firmware.yml"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt-get update -qq && apt-get install -y -qq curl xz-utils make gawk ca-certificates debianutils >/dev/null
+      - name: Apple server answers
+        run: |
+          URL=$(sed -n 's/^URL:=//p' config/includes.chroot/usr/share/eagle/facetimehd-firmware/Makefile | head -1)
+          URL=${URL//\$(DMG)/macOSUpdCombo10.12.6.dmg}
+          echo "$URL"
+          curl -s -o /dev/null -w "root HEAD: %{http_code}\n" -I https://updates.cdn-apple.com/ || true
+          curl -s -o /dev/null -w "range 0-0: %{http_code}\n" -r 0-0 "$URL"
+      - name: Download and extract
+        run: |
+          cp -a config/includes.chroot/usr/share/eagle/facetimehd-firmware /tmp/fw && cd /tmp/fw
+          make
+          ls -l; sha256sum firmware.bin *_01XX.dat
