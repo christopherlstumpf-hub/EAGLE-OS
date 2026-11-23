@@ -18,7 +18,10 @@ async function loadSettings() {
   try { settings = { ...DEFAULTS, ...(await browser.storage.local.get(DEFAULTS)) }; } catch (e) { settings = { ...DEFAULTS }; }
 }
 loadSettings();
-browser.storage.onChanged.addListener(() => { loadSettings(); activity(); });
+browser.storage.onChanged.addListener((changes) => {
+  if (Object.keys(changes).some((k) => k in DEFAULTS)) { loadSettings(); activity(); }
+  if (changes.calendars) syncCalendars();
+});
 
 function activity() { lastActivity = Date.now(); resetDone = false; }
 function suppress() { suppressUntil = Date.now() + 2500; }
@@ -36,6 +39,8 @@ browser.runtime.onMessage.addListener((msg, sender) => {
       return closeSaver();
     case "saver-preview":
       return openSaver(true);
+    case "cal-refresh":
+      return syncCalendars();
     case "get-settings":
       return Promise.resolve(settings);
     case "get-state":
@@ -101,3 +106,48 @@ async function tick() {
   }
 }
 setInterval(tick, 15000);
+
+// ---------- Calendar links (Google, Outlook, iCloud, Yahoo ... iCal links) ----------
+// The links stay on this PC (storage.local "calendars"). Events from 6 weeks back to 13 months
+// ahead are kept in storage.local "calData" for the start page. Refreshed every 15 minutes.
+let syncing = null;
+async function fetchCalendar(c, from, to) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 30000);
+  try {
+    const r = await fetch(EagleICal.normalizeUrl(c.url), { cache: "no-store", credentials: "omit", signal: ctl.signal });
+    if (!r.ok) throw new Error(r.status === 404 || r.status === 403 || r.status === 401
+      ? "The calendar link was refused. It may have been reset; copy a new link." : "The calendar site answered " + r.status + ".");
+    const text = await r.text();
+    if (!/BEGIN:VCALENDAR/i.test(text)) throw new Error("That link isn't an iCal calendar link.");
+    return EagleICal.parse(text, from, to).slice(0, 4000);
+  } finally { clearTimeout(timer); }
+}
+function syncCalendars() {
+  if (syncing) return syncing;
+  syncing = (async () => {
+    let cals = [];
+    try { cals = (await browser.storage.local.get({ calendars: [] })).calendars || []; } catch (e) { /* none */ }
+    const prev = (await browser.storage.local.get({ calData: { events: [], status: {} } })).calData;
+    const from = Date.now() - 42 * 86400000, to = Date.now() + 400 * 86400000;
+    const events = [], status = {};
+    for (const c of cals) {
+      try {
+        const list = await fetchCalendar(c, from, to);
+        for (const e of list) events.push({ ...e, cal: c.id });
+        status[c.id] = { ok: true, when: Date.now(), count: list.length };
+      } catch (err) {
+        // offline or failed: keep this calendar's last good events
+        for (const e of prev.events || []) if (e.cal === c.id) events.push(e);
+        const old = (prev.status || {})[c.id] || {};
+        status[c.id] = { ok: false, when: old.when || 0, count: old.count || 0,
+          error: err.name === "AbortError" || err instanceof TypeError ? "Couldn't reach the calendar. Is the PC online?" : err.message };
+      }
+    }
+    events.sort((a, b) => a.start - b.start);
+    await browser.storage.local.set({ calData: { events, status, updated: Date.now() } });
+  })().finally(() => { syncing = null; });
+  return syncing;
+}
+syncCalendars();
+setInterval(syncCalendars, 15 * 60000);

@@ -80,6 +80,20 @@
   .cal-grid .day.other { color:#555; }
   .cal-grid .day.weekend { color:#a8a8a8; }
   .cal-grid .day.today { background:var(--orange); color:#000; font-weight:800; }
+  .cal-grid .day { position:relative; cursor:pointer; }
+  .cal-grid .day:hover { box-shadow:inset 0 0 0 1px var(--grey); }
+  .cal-grid .day.sel { box-shadow:inset 0 0 0 2px var(--orange); }
+  .cal-grid .dots { position:absolute; left:0; right:0; bottom:2px; display:flex; justify-content:center; gap:2px; pointer-events:none; }
+  .cal-grid .dots i { width:5px; height:5px; border-radius:50%; }
+  .cal-grid .day.today .dots i { box-shadow:0 0 0 1px #000; }
+  .cal-events { margin-top:12px; border-top:1px solid var(--grey); padding-top:10px; }
+  .cal-events h3 { margin:0 0 6px; font-size:12px; color:var(--dim); letter-spacing:.06em; text-transform:uppercase; font-weight:600; }
+  .ev { display:flex; gap:8px; align-items:flex-start; font-size:13px; padding:4px 0; }
+  .ev .bar { width:4px; align-self:stretch; border-radius:2px; flex:none; }
+  .ev .t { color:var(--dim); white-space:nowrap; min-width:62px; }
+  .ev .n { color:var(--text); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .ev-none { font-size:13px; color:var(--dim); padding:2px 0 4px; }
+  .cal-connect { font-size:13px; color:var(--orange); text-decoration:none; }
   .cal-foot { display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:12px; color:var(--dim); }
   .cal-foot a { color:var(--orange); text-decoration:none; cursor:pointer; }
 
@@ -136,7 +150,8 @@
       </div>
     </div>
     <div class="cal-grid" id="cal-grid"></div>
-    <div class="cal-foot"><a href="#" data-eagle-action="datetime">Set date and time</a><a id="cal-today" role="button" tabindex="0">Today</a></div>
+    <div class="cal-events" id="cal-events"></div>
+    <div class="cal-foot"><a href="#" data-eagle-action="datetime">Set date and time</a><a href="calendars.html">Calendars</a><a id="cal-today" role="button" tabindex="0">Today</a></div>
   </section>
 
   <section class="card" aria-label="Security">

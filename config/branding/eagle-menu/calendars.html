@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>EAGLE-OS · Calendars</title>
+<style>
+  :root { --panel:#1b1b1b; --grey:#3a3a3a; --text:#d6d6d6; --dim:#8a8a8a; --orange:#ff7a00; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; min-height:100%; background:#000; color:var(--text); font-family:"Noto Sans","DejaVu Sans",sans-serif; }
+  main { max-width:980px; margin:0 auto; padding:36px 24px 60px; }
+  h1 { margin:0; font-size:26px; color:#fff; }
+  h1 span { color:var(--orange); }
+  .rule { width:120px; height:4px; background:var(--orange); margin:12px 0 26px; }
+  section { background:var(--panel); border:1px solid var(--grey); border-radius:14px; padding:20px 22px; margin-bottom:20px; }
+  h2 { margin:0 0 4px; font-size:17px; color:#fff; }
+  .note { color:var(--dim); font-size:13px; margin:0 0 14px; }
+  .actions { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  button, a.btn { font:inherit; font-size:15px; font-weight:700; padding:12px 20px; border-radius:10px; border:0; cursor:pointer; text-decoration:none; }
+  .primary { background:var(--orange); color:#000; }
+  .secondary { background:var(--grey); color:#fff; }
+
+  .cal-list { display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
+  .cal-row { display:flex; align-items:center; gap:14px; background:#111; border:1px solid var(--grey); border-radius:10px; padding:12px 14px; }
+  .swatch { width:16px; height:16px; border-radius:50%; flex:none; }
+  .cal-info { flex:1; min-width:0; }
+  .cal-name { color:#fff; font-weight:700; font-size:15px; }
+  .cal-state { font-size:13px; color:var(--dim); margin-top:2px; }
+  .cal-state.bad { color:#e0483e; }
+  .cal-row button { padding:8px 14px; font-size:14px; }
+  .empty { color:var(--dim); font-size:14px; padding:4px 0 8px; }
+  form { display:grid; gap:10px; }
+  label.field { font-size:13px; color:var(--dim); display:grid; gap:4px; }
+  input[type=text], input[type=url] { font:inherit; font-size:15px; padding:11px 12px; border-radius:8px; border:1px solid var(--grey); background:#0f0f0f; color:#fff; outline:none; }
+  input:focus { border-color:var(--orange); }
+  .colors { display:flex; gap:10px; }
+  .colors label { cursor:pointer; }
+  .colors input { position:absolute; opacity:0; pointer-events:none; }
+  .colors span { display:block; width:30px; height:30px; border-radius:50%; border:3px solid transparent; }
+  .colors input:checked + span { border-color:#fff; }
+  .colors input:focus-visible + span { outline:2px solid var(--orange); }
+  #msg { font-size:14px; min-height:18px; }
+  #msg.bad { color:#e0483e; } #msg.good { color:var(--orange); }
+  .how { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; }
+  .how div { background:#111; border:1px solid var(--grey); border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.5; }
+  .how b { color:#fff; font-size:14px; }
+  .how ol { margin:6px 0 0; padding-left:18px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Calendars <span>on the start page</span></h1>
+  <div class="rule"></div>
+
+  <section>
+    <h2>Your calendars</h2>
+    <p class="note">Events show on the start page calendar and refresh every 15 minutes. View only: add or change events in Google, Outlook or iCloud. The links are kept on this PC only.</p>
+    <div class="cal-list" id="list"></div>
+    <div class="actions"><button type="button" class="secondary" id="refresh">Refresh now</button></div>
+  </section>
+
+  <section>
+    <h2>Add a calendar</h2>
+    <p class="note">Paste the calendar's private iCal link (it ends in .ics, or starts with webcal://).</p>
+    <form id="add">
+      <label class="field">Name<input type="text" id="name" maxlength="40" placeholder="Family, Work…" required></label>
+      <label class="field">Calendar link<input type="text" id="url" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" required></label>
+      <div class="colors" id="colors" role="radiogroup" aria-label="Colour"></div>
+      <div class="actions"><button type="submit" class="primary" id="add-btn">Add calendar</button><span id="msg"></span></div>
+    </form>
+  </section>
+
+  <section>
+    <h2>Where to find the link</h2>
+    <div class="how">
+      <div><b>Google Calendar</b><ol><li>On a computer, open calendar.google.com, then the gear → <i>Settings</i>.</li><li>On the left, pick your calendar under <i>Settings for my calendars</i>.</li><li>Under <i>Integrate calendar</i>, copy <i>Secret address in iCal format</i>.</li></ol></div>
+      <div><b>Outlook / Microsoft 365</b><ol><li>In Outlook on the web: gear → <i>Calendar</i> → <i>Shared calendars</i>.</li><li>Under <i>Publish a calendar</i>, choose the calendar and <i>Can view all details</i>, then <i>Publish</i>.</li><li>Copy the <i>ICS</i> link.</li></ol></div>
+      <div><b>iCloud (Apple)</b><ol><li>On iCloud.com or an iPhone, open Calendar and tap the share icon next to the calendar.</li><li>Turn on <i>Public Calendar</i>.</li><li>Copy the link (it starts with webcal://).</li></ol></div>
+      <div><b>Yahoo and others</b><ol><li>Look for <i>Share</i>, <i>Export</i> or <i>Subscribe</i> in the calendar's settings.</li><li>Copy the iCal / ICS link.</li></ol></div>
+    </div>
+  </section>
+
+  <div class="actions"><a class="btn secondary" href="start.html">Back to start page</a></div>
+</main>
+<script src="activity.js"></script>
+<script src="ical.js"></script>
+<script src="calendars.js"></script>
+</body>
+</html>

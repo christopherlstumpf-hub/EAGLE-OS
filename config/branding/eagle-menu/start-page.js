@@ -31,7 +31,74 @@ tick();
 setInterval(tick, 15000);
 
 // ---------- Month calendar ----------
-const cal = { year: 0, month: 0 };
+const cal = { year: 0, month: 0, selected: null };
+let calCals = [], calEvents = [];
+
+function dayKey(d) { return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+// events on a given day (multi-day events count on every day they cover)
+function eventsOn(d) {
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const b = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+  return calEvents.filter((e) => e.start < b && (e.end > a || (e.end === e.start && e.start >= a)));
+}
+function calColor(e) { const c = calCals.find((x) => x.id === e.cal); return c ? c.color : "#ff7a00"; }
+function evTime(e, d) {
+  if (e.allDay) return "All day";
+  const s = new Date(e.start);
+  if (d && !sameDay(s, d)) return "…";
+  return s.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+function evRow(e, label) {
+  const row = document.createElement("div"); row.className = "ev";
+  const bar = document.createElement("span"); bar.className = "bar"; bar.style.background = calColor(e);
+  const t = document.createElement("span"); t.className = "t"; t.textContent = label;
+  const n = document.createElement("span"); n.className = "n"; n.textContent = e.title + (e.location ? " · " + e.location : "");
+  row.append(bar, t, n);
+  return row;
+}
+function renderEvents() {
+  const box = document.getElementById("cal-events");
+  box.textContent = "";
+  if (!calCals.length) {
+    const a = document.createElement("a");
+    a.className = "cal-connect"; a.href = "calendars.html";
+    a.textContent = "+ Show your Google, Outlook or iCloud calendar here";
+    box.appendChild(a);
+    return;
+  }
+  const day = cal.selected || new Date();
+  const h = document.createElement("h3");
+  h.textContent = sameDay(day, new Date()) ? "Today" : day.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  box.appendChild(h);
+  const list = eventsOn(day);
+  if (!list.length) {
+    const p = document.createElement("div"); p.className = "ev-none"; p.textContent = "Nothing scheduled";
+    box.appendChild(p);
+  }
+  for (const e of list.slice(0, 8)) box.appendChild(evRow(e, evTime(e, day)));
+
+  // coming up: next 4 after the selected day, within 2 weeks
+  const after = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
+  const next = calEvents.filter((e) => e.start >= Math.max(after, Date.now()) && e.start < after + 14 * 86400000).slice(0, 4);
+  if (next.length) {
+    const h2 = document.createElement("h3"); h2.textContent = "Coming up"; h2.style.marginTop = "10px";
+    box.appendChild(h2);
+    for (const e of next) {
+      const s = new Date(e.start);
+      const label = s.toLocaleDateString(undefined, { weekday: "short" }) + (e.allDay ? "" : " " + s.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }));
+      box.appendChild(evRow(e, label));
+    }
+  }
+}
+async function loadCalendarData() {
+  try {
+    const s = await browser.storage.local.get({ calendars: [], calData: { events: [] } });
+    calCals = s.calendars || [];
+    calEvents = (s.calData && s.calData.events || []).filter((e) => calCals.some((c) => c.id === e.cal));
+  } catch (e) { calCals = []; calEvents = []; }
+  renderCalendar();
+}
+browser.storage.onChanged.addListener((ch) => { if (ch.calendars || ch.calData) loadCalendarData(); });
 
 function sameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -64,14 +131,26 @@ function renderCalendar() {
     if (d.getMonth() !== cal.month) el.classList.add("other");
     if (d.getDay() === 0 || d.getDay() === 6) el.classList.add("weekend");
     if (sameDay(d, today)) { el.classList.add("today"); el.setAttribute("aria-current", "date"); }
+    if (cal.selected && sameDay(d, cal.selected)) el.classList.add("sel");
     el.textContent = d.getDate();
+    const evs = calEvents.length ? eventsOn(d) : [];
+    if (evs.length) {
+      const dots = document.createElement("span"); dots.className = "dots";
+      const colors = [...new Set(evs.map(calColor))].slice(0, 3);
+      for (const c of colors) { const i = document.createElement("i"); i.style.background = c; dots.appendChild(i); }
+      dots.setAttribute("aria-hidden", "true");
+      el.appendChild(dots);
+      el.title = evs.length + (evs.length === 1 ? " event" : " events");
+    }
+    el.addEventListener("click", () => { cal.selected = d; renderCalendar(); });
     grid.appendChild(el);
   }
+  renderEvents();
 
 }
 
 function goToday() {
-  const t = new Date(); cal.year = t.getFullYear(); cal.month = t.getMonth(); renderCalendar();
+  const t = new Date(); cal.year = t.getFullYear(); cal.month = t.getMonth(); cal.selected = null; renderCalendar();
 }
 function shiftMonth(n) {
   const d = new Date(cal.year, cal.month + n, 1); cal.year = d.getFullYear(); cal.month = d.getMonth(); renderCalendar();
@@ -82,6 +161,7 @@ const todayLink = document.getElementById("cal-today");
 todayLink.addEventListener("click", goToday);
 todayLink.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") goToday(); });
 goToday();
+loadCalendarData();
 // roll over at midnight
 setInterval(() => { const t = new Date(); if (t.getHours() === 0 && t.getMinutes() === 0) goToday(); }, 60000);
 

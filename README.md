@@ -106,6 +106,10 @@ Search, link buttons and an **Install EAGLE-OS** banner when running from the st
 
 **Link buttons:** Google, Gmail, YouTube, Maps, News and Weather are always there. Use **+ Add link** for your own sites (a name and a web address like `facebook.com`). Turn on **Edit links** to show a ✕ that removes them. Camera test, Wi-Fi and EAGLE menu start as removable links. Your links are kept on installed PCs; running from the stick they reset at restart. On the right are a **month calendar** (today in orange, with previous/next month and a **Set date and time** link) and a **Security** card showing antivirus status. The default time zone is US Eastern; change it under **Date and time**.
 
+## Calendar links (Google, Outlook, iCloud)
+
+The month calendar on the start page can show your own calendars. Click **Calendars** under it, paste the calendar's private iCal link (Google: Settings → your calendar → *Secret address in iCal format*; Outlook: Settings → Calendar → Shared calendars → Publish → ICS; iCloud: share the calendar as a Public Calendar), pick a colour and add it. Days with events get coloured dots; click a day to see its events, with "Coming up" below. Up to 8 calendars, refreshed every 15 minutes. View only: add or change events in Google, Outlook or iCloud. The links are kept on this PC only.
+
 ## Spotify and streaming
 
 The start page has a Spotify tile (open.spotify.com; remove it in Edit links if you like). Spotify, Netflix and other protected music and video need Google's Widevine module, which Firefox downloads by itself the first time it's online (a few seconds; on a stick, after each restart). Sign in with your Spotify account (free or Premium).
