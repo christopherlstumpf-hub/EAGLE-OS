@@ -26,6 +26,70 @@ def send(obj):
     sys.stdout.buffer.flush()
 
 
+def read(path, cast=str):
+    try:
+        with open(path) as f:
+            return cast(f.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def battery():
+    """Battery level and charger state from /sys/class/power_supply (all batteries combined)."""
+    base = "/sys/class/power_supply"
+    try:
+        names = sorted(os.listdir(base))
+    except OSError:
+        names = []
+    bats, plugged = [], None
+    for n in names:
+        d = os.path.join(base, n)
+        kind = read(d + "/type")
+        if kind == "Mains":
+            on = read(d + "/online", int)
+            if on is not None:
+                plugged = bool(on) or bool(plugged)
+        elif kind == "Battery" and read(d + "/scope") != "Device":   # skip mice and keyboards
+            if read(d + "/present", int) == 0:
+                continue
+            bats.append(d)
+    if not bats:
+        return {"ok": True, "present": False}
+    now = full = rate = 0.0
+    pcts, statuses = [], []
+    for d in bats:
+        st = read(d + "/status") or "Unknown"
+        statuses.append(st)
+        cap = read(d + "/capacity", int)
+        e_now = read(d + "/energy_now", float) or read(d + "/charge_now", float)
+        e_full = read(d + "/energy_full", float) or read(d + "/charge_full", float)
+        r = read(d + "/power_now", float) or read(d + "/current_now", float)
+        if e_now is not None and e_full:
+            now += e_now; full += e_full
+        elif cap is not None:
+            pcts.append(cap)
+        if r:
+            rate += abs(r)
+    percent = round(100 * now / full) if full else (round(sum(pcts) / len(pcts)) if pcts else None)
+    if percent is not None:
+        percent = max(0, min(100, percent))
+    charging = "Charging" in statuses
+    discharging = "Discharging" in statuses
+    if plugged is None:
+        plugged = not discharging
+    minutes = None
+    if rate > 0 and full:
+        if discharging:
+            minutes = round(60 * now / rate)
+        elif charging:
+            minutes = round(60 * (full - now) / rate)
+        if minutes is not None and not 0 < minutes < 48 * 60:
+            minutes = None
+    return {"ok": True, "present": True, "percent": percent, "charging": charging,
+            "plugged": bool(plugged) and not discharging, "full": "Full" in statuses or (percent == 100 and not discharging),
+            "minutes": minutes}
+
+
 def main():
     msg = read_msg()
     action = str(msg.get("action", ""))
@@ -36,6 +100,8 @@ def main():
         except OSError:
             variant = "standard"
         send({"ok": True, "live": live, "variant": variant})
+    elif action == "battery":
+        send(battery())
     elif action == "security_status":
         try:
             st = json.load(open("/var/lib/eagle/security.json"))

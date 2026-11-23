@@ -97,3 +97,6 @@ triggerhappy
 curl
 make
 xz-utils
+
+# Battery: safe shutdown when nearly empty
+upower

@@ -20,6 +20,39 @@ function eagle(action) {
   });
 })();
 
+// ---------- Battery (laptops) ----------
+function showBattery(b) {
+  const el = document.getElementById("battery");
+  if (!b || !b.present || b.percent == null) { el.classList.add("hidden"); return; }
+  el.className = "battery";
+  const low = !b.plugged && !b.charging && b.percent <= 20;
+  if (low) el.classList.add("low");
+  if (b.charging || b.plugged) el.classList.add("charging");
+  el.textContent = "";
+  const icon = document.createElement("span"); icon.className = "batt-icon";
+  const fill = document.createElement("span"); fill.className = "batt-fill";
+  fill.style.width = "calc(" + Math.max(4, b.percent) + "% - 2px)";
+  icon.appendChild(fill);
+  el.appendChild(icon);
+  if (b.charging || b.plugged) { const z = document.createElement("span"); z.className = "batt-bolt"; z.textContent = "⚡"; el.appendChild(z); }
+  const h = b.minutes != null ? (b.minutes >= 60 ? Math.floor(b.minutes / 60) + " h " + (b.minutes % 60) + " min" : b.minutes + " min") : "";
+  let t = b.percent + "%";
+  if (b.charging) t += " · Charging" + (h ? " · full in " + h : "");
+  else if (b.plugged) t += b.full || b.percent >= 99 ? " · Plugged in, fully charged" : " · Plugged in";
+  else t += " · On battery" + (h ? " · about " + h + " left" : "");
+  el.appendChild(document.createTextNode(t));
+}
+(async () => {
+  let b = null;
+  try { b = await browser.runtime.sendMessage({ type: "get-battery" }); } catch (e) { /* ignore */ }
+  if (!b) b = await eagle("battery");
+  showBattery(b);
+})();
+browser.runtime.onMessage.addListener((msg) => {
+  if (msg && msg.type === "battery") showBattery(msg.battery);
+  return undefined;
+});
+
 // ---------- Clock ----------
 function tick() {
   const d = new Date();

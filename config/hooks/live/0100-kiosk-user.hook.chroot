@@ -35,6 +35,12 @@ chmod 0755 /usr/local/bin/eagle-volume /usr/local/bin/eagle-brightness
 systemd-hwdb update
 systemctl enable triggerhappy.service 2>/dev/null || true
 
+# Battery: shut down cleanly at 3% instead of running flat (protects files on eMMC / SSD)
+if [ -f /etc/UPower/UPower.conf ]; then
+  sed -i -e 's/^PercentageLow=.*/PercentageLow=20/' -e 's/^PercentageCritical=.*/PercentageCritical=5/' \
+         -e 's/^PercentageAction=.*/PercentageAction=3/' -e 's/^CriticalPowerAction=.*/CriticalPowerAction=PowerOff/' /etc/UPower/UPower.conf
+fi
+
 # Mac support: camera firmware download (does nothing on other PCs)
 chmod 0755 /usr/local/sbin/eagle-facetime-firmware
 systemctl enable eagle-facetime-firmware.service

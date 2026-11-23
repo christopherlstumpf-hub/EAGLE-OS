@@ -106,6 +106,10 @@ Search, link buttons and an **Install EAGLE-OS** banner when running from the st
 
 **Link buttons:** Google, Gmail, YouTube, Maps, News and Weather are always there. Use **+ Add link** for your own sites (a name and a web address like `facebook.com`). Turn on **Edit links** to show a ✕ that removes them. Camera test, Wi-Fi and EAGLE menu start as removable links. Your links are kept on installed PCs; running from the stick they reset at restart. On the right are a **month calendar** (today in orange, with previous/next month and a **Set date and time** link) and a **Security** card showing antivirus status. The default time zone is US Eastern; change it under **Date and time**.
 
+## Battery
+
+On laptops the battery level shows under the clock on the start page (with time left, or "Charging" / "Plugged in"), at the top of the EAGLE menu, and as a small number on the orange E button (green with ⚡ when charging, red at 20% or less). Warnings appear at 20%, 10% and 5%; at 3% EAGLE-OS shuts down cleanly so nothing is lost. Desktops without a battery show nothing.
+
 ## Calendar links (Google, Outlook, iCloud)
 
 The month calendar on the start page can show your own calendars. Click **Calendars** under it, paste the calendar's private iCal link (Google: Settings → your calendar → *Secret address in iCal format*; Outlook: Settings → Calendar → Shared calendars → Publish → ICS; iCloud: share the calendar as a Public Calendar), pick a colour and add it. Days with events get coloured dots; click a day to see its events, with "Coming up" below. Up to 8 calendars, refreshed every 15 minutes. View only: add or change events in Google, Outlook or iCloud. The links are kept on this PC only.

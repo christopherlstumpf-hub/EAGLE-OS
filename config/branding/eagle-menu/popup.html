@@ -14,10 +14,12 @@
   button.install:hover, button.install:focus { background:#ff9330; color:#000; }
   hr { border:0; border-top:1px solid #333; margin:6px 0; }
   .hidden { display:none; }
+  #batt { color:#d6d6d6; font-size:12px; margin-top:6px; }
+  #batt.low { color:#ff6b61; font-weight:700; }
 </style>
 </head>
 <body>
-  <header>EAGLE-OS<small>by Stumpf Technology</small></header>
+  <header>EAGLE-OS<small>by Stumpf Technology</small><small id="batt" class="hidden"></small></header>
   <div class="list">
     <button data-action="wifi">Wi-Fi and network</button>
     <button data-action="display">Display and screen size</button>

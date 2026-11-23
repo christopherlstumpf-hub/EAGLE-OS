@@ -41,6 +41,8 @@ browser.runtime.onMessage.addListener((msg, sender) => {
       return openSaver(true);
     case "cal-refresh":
       return syncCalendars();
+    case "get-battery":
+      return Promise.resolve(lastBattery);
     case "get-settings":
       return Promise.resolve(settings);
     case "get-state":
@@ -151,3 +153,48 @@ function syncCalendars() {
 }
 syncCalendars();
 setInterval(syncCalendars, 15 * 60000);
+
+// ---------- Battery: level on the E button, warnings when low ----------
+let lastBattery = null;
+const warned = new Set();
+function batteryText(b) {
+  if (!b || !b.present || b.percent == null) return "";
+  const h = b.minutes != null ? (b.minutes >= 60 ? Math.floor(b.minutes / 60) + " h " + (b.minutes % 60) + " min" : b.minutes + " min") : "";
+  if (b.charging) return "Battery " + b.percent + "%, charging" + (h ? " (full in " + h + ")" : "");
+  if (b.plugged) return "Battery " + b.percent + "%, plugged in";
+  return "Battery " + b.percent + "%" + (h ? ", about " + h + " left" : "");
+}
+async function checkBattery() {
+  let b = null;
+  try { b = await browser.runtime.sendNativeMessage("eagle", { action: "battery" }); } catch (e) { return; }
+  lastBattery = b;
+  const ba = browser.browserAction;
+  if (!b || !b.present || b.percent == null) {
+    ba.setBadgeText({ text: "" }); ba.setTitle({ title: "EAGLE-OS menu" }); return;
+  }
+  const low = !b.plugged && !b.charging && b.percent <= 20;
+  const text = b.charging ? "⚡" + b.percent : (b.plugged ? "⚡" : b.percent + "%");
+  ba.setBadgeText({ text });
+  ba.setBadgeBackgroundColor({ color: low ? "#e0483e" : (b.charging || b.plugged ? "#2e7d32" : "#3a3a3a") });
+  if (ba.setBadgeTextColor) ba.setBadgeTextColor({ color: "#ffffff" });
+  ba.setTitle({ title: "EAGLE-OS menu · " + batteryText(b) });
+  browser.runtime.sendMessage({ type: "battery", battery: b }).catch(() => {});
+
+  // low battery warnings at 20%, 10% and 5% (once each per discharge)
+  if (b.plugged || b.charging) { warned.clear(); return; }
+  for (const level of [5, 10, 20]) {
+    if (b.percent <= level && !warned.has(level)) {
+      [5, 10, 20].filter((x) => x >= level).forEach((x) => warned.add(x));
+      const msg = level === 5
+        ? "Battery at " + b.percent + "%. Plug in now: EAGLE-OS will shut down at 3% to protect your files."
+        : "Battery at " + b.percent + "%. Plug in the charger soon.";
+      const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+      const warn = { type: "battery-warn", text: msg, critical: level === 5 };
+      if (tab) browser.tabs.sendMessage(tab.id, warn).catch(() => {});
+      browser.runtime.sendMessage(warn).catch(() => {});   // EAGLE pages (start page, settings)
+      break;
+    }
+  }
+}
+checkBattery();
+setInterval(checkBattery, 60000);

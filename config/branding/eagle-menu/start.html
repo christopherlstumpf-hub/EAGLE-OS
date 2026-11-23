@@ -16,6 +16,14 @@
   main { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:40px 20px; }
   .logo { width:min(560px, 80vw); height:auto; }
   .bar { width:min(280px, 40vw); height:4px; background:var(--orange); margin-top:-14px; }
+  .battery { display:flex; align-items:center; gap:8px; color:var(--dim); font-size:14px; margin-top:-8px; }
+  .battery.hidden { display:none; }
+  .batt-icon { position:relative; width:30px; height:14px; border:2px solid var(--dim); border-radius:3px; box-sizing:border-box; }
+  .batt-icon::after { content:""; position:absolute; right:-5px; top:3px; width:3px; height:4px; background:var(--dim); border-radius:0 1px 1px 0; }
+  .batt-fill { position:absolute; left:1px; top:1px; bottom:1px; border-radius:1px; background:var(--text); }
+  .battery.low { color:var(--red); } .battery.low .batt-icon { border-color:var(--red); } .battery.low .batt-fill { background:var(--red); }
+  .battery.charging .batt-fill { background:var(--green); }
+  .batt-bolt { color:var(--green); font-weight:800; }
   #clock { color:var(--dim); font-size:15px; letter-spacing:.08em; }
   form { width:min(640px, 90vw); display:flex; }
   input[type=search] { flex:1; font-size:18px; padding:14px 18px; color:#fff; background:var(--panel);
@@ -113,6 +121,7 @@
   <img class="logo" src="logo.png" alt="EAGLE-OS">
   <div class="bar"></div>
   <div id="clock"></div>
+  <div id="battery" class="battery hidden" role="status"></div>
   <div class="install">
     <p><b>You're running EAGLE-OS from a USB stick or card.</b><br>Install it on this PC to keep your Wi-Fi, settings and updates.</p>
     <button type="button" data-eagle-action="install">Install EAGLE-OS</button>
