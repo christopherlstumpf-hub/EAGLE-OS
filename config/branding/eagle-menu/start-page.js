@@ -14,6 +14,7 @@ function eagle(action) {
   document.addEventListener("click", (ev) => {
     const el = ev.target.closest("[data-eagle-action]");
     if (!el) return;
+    if (document.documentElement.classList.contains("editing") && el.closest("#tiles")) return;
     ev.preventDefault();
     eagle(el.dataset.eagleAction);
   });
@@ -240,5 +241,13 @@ document.getElementById("edit-links").addEventListener("click", () => {
   const on = document.documentElement.classList.toggle("editing");
   document.getElementById("edit-links").textContent = on ? "Done" : "Edit links";
 });
+
+// While editing, clicking a button does nothing (only the ✕ removes it)
+document.getElementById("tiles").addEventListener("click", (ev) => {
+  if (!document.documentElement.classList.contains("editing")) return;
+  if (ev.target.closest(".remove") || ev.target.closest(".add-tile")) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+}, true);
 
 loadLinks().then(renderTiles);

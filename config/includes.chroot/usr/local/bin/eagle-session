@@ -11,8 +11,10 @@
 
 CONF="$HOME/.config/eagle"
 REQUEST="$CONF/request"
+APPLOG="$CONF/session.log"   # app messages go here instead of flashing on screen
 RENDERER_FILE="$CONF/renderer"
 mkdir -p "$CONF"
+[ -f "$APPLOG" ] && [ "$(stat -c %s "$APPLOG" 2>/dev/null || echo 0)" -gt 1048576 ] && : > "$APPLOG"
 
 # ---------- Display mode ----------
 if [ "${1:-}" = "--inside-x" ]; then
@@ -46,15 +48,15 @@ fi
 run_app() {
   local start=$SECONDS rc
   if [ "$MODE" = "x11" ]; then
-    "$@"; return $?
+    "$@" >>"$APPLOG" 2>&1; return $?
   fi
-  cage -s -- "$@"; rc=$?
+  cage -s -- "$@" >>"$APPLOG" 2>&1; rc=$?
   if [ "$rc" -ne 0 ] && [ $((SECONDS - start)) -lt 6 ]; then
     if [ "${WLR_RENDERER:-}" != "pixman" ]; then
       export WLR_RENDERER=pixman
       echo pixman > "$RENDERER_FILE"
       start=$SECONDS
-      cage -s -- "$@"; rc=$?
+      cage -s -- "$@" >>"$APPLOG" 2>&1; rc=$?
     fi
     if [ "$rc" -ne 0 ] && [ $((SECONDS - start)) -lt 6 ]; then
       echo x11 > "$RENDERER_FILE"
@@ -69,7 +71,7 @@ screen() {
   if [ "$MODE" = "x11" ]; then
     xterm -fullscreen -fa "DejaVu Sans Mono" -fs 14 -bg black -fg '#d6d6d6' -bc -b 24 \
       -xrm 'XTerm*color0: #000000' -xrm 'XTerm*color3: #ff7a00' -xrm 'XTerm*color8: #3a3a3a' \
-      -xrm 'XTerm*cursorColor: #ff7a00' -T "EAGLE-OS" -e "$@"
+      -xrm 'XTerm*cursorColor: #ff7a00' -T "EAGLE-OS" -e "$@" 2>>"$APPLOG"
   else
     run_app foot --title "EAGLE-OS" "$@"
   fi

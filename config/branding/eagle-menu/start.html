@@ -30,8 +30,10 @@
   .tiles .tile { position:relative; }
   .tiles .tile a { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tiles .add-tile a { border-style:dashed; color:var(--orange); font-weight:700; }
-  .tiles .remove { display:none; position:absolute; top:-8px; right:-8px; width:26px; height:26px; padding:0;
-    border-radius:50%; background:var(--orange); color:#000; font-size:15px; line-height:26px; font-weight:800; }
+  .tiles .remove { display:none; position:absolute; top:-12px; right:-12px; width:34px; height:34px; padding:0;
+    border-radius:50%; background:var(--orange); color:#000; font-size:18px; line-height:34px; font-weight:800;
+    border:2px solid #000; cursor:pointer; z-index:2; }
+  html.editing .tiles .removable a { cursor:default; }
   html.editing .tiles .removable .remove { display:block; }
   html.editing .tiles .removable a { border-color:var(--orange); }
   html.editing .tiles .fixed a { opacity:.55; }
