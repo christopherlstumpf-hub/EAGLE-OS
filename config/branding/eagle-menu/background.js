@@ -353,11 +353,11 @@ function placeholderTarget(url) {
 }
 const tabUrl = (t) => t.url || t.pendingUrl || "";
 let tabsChain = Promise.resolve();
-function ensureTabs(create) {                // one at a time
-  tabsChain = tabsChain.then(() => doEnsureTabs(create)).catch(() => {});
+function ensureTabs(create, activateStart) {   // one at a time
+  tabsChain = tabsChain.then(() => doEnsureTabs(create, activateStart)).catch(() => {});
   return tabsChain;
 }
-async function doEnsureTabs(create) {
+async function doEnsureTabs(create, activateStart) {
   await tabsReady;
   let win;
   try { win = await browser.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }); } catch (e) { return; }
@@ -366,7 +366,7 @@ async function doEnsureTabs(create) {
   suppress();
   // EAGLE tab: first and pinned
   let st = tabs.find((t) => t.id === startTabId) || tabs.find((t) => tabUrl(t).startsWith(START_URL));
-  if (!st) st = await browser.tabs.create({ windowId: win.id, url: START_URL, index: 0, pinned: true, active: tabs.length === 0 });
+  if (!st) st = await browser.tabs.create({ windowId: win.id, url: START_URL, index: 0, pinned: true, active: !!activateStart || tabs.length === 0 });
   startTabId = st.id;
   if (!st.pinned) await browser.tabs.update(st.id, { pinned: true }).catch(() => {});
   if (st.index !== 0) await browser.tabs.move(st.id, { index: 0 }).catch(() => {});
@@ -405,7 +405,7 @@ browser.tabs.onRemoved.addListener((tabId, info) => {
   for (const u of Object.keys(linkTabs)) if (linkTabs[u] === tabId) { delete linkTabs[u]; saveTabs(); }
   if (tabId !== startTabId || info.isWindowClosing) return;
   startTabId = null;
-  ensureTabs(false);
+  ensureTabs(false, true);     // closed (Ctrl+W): bring it straight back
 });
 browser.tabs.onMoved.addListener((tabId, info) => {
   if (tabId === startTabId && info.toIndex !== 0) browser.tabs.move(tabId, { index: 0 }).catch(() => {});
