@@ -1,0 +1,67 @@
+#!/bin/bash
+# EAGLE-OS printers (run as root by the EAGLE menu via sudo).
+#   eagle-printers list                 name|state|address|default(yes/no)
+#   eagle-printers find                 address|description   (printers on the network and USB)
+#   eagle-printers add ADDRESS [NAME]   add a printer found by "find"
+#   eagle-printers add-ip IP [NAME]     add a network printer by its IP address
+#   eagle-printers default NAME | remove NAME | test NAME
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+clean_name() { local n; n=$(printf '%s' "$1" | tr -c 'A-Za-z0-9_-' '_' | sed 's/__*/_/g; s/^_//; s/_$//'); printf '%s' "${n:0:40}"; }
+exists() { lpstat -p "$1" >/dev/null 2>&1; }
+make_default_if_first() { lpstat -d 2>/dev/null | grep -q "system default destination" || lpadmin -d "$1"; }
+
+case "${1:-}" in
+  list)
+    def=$(lpstat -d 2>/dev/null | sed -n 's/^system default destination: //p')
+    lpstat -v 2>/dev/null | while read -r _ name addr; do
+      name=${name%:}
+      state=$(lpstat -p "$name" 2>/dev/null | head -1 | sed -E 's/^printer [^ ]+ (is )?//; s/\.  .*//')
+      printf '%s|%s|%s|%s\n' "$name" "$state" "$addr" "$([ "$name" = "$def" ] && echo yes || echo no)"
+    done ;;
+
+  find)
+    # network printers that print without drivers (AirPrint / IPP Everywhere / Mopria)
+    timeout 20 driverless 2>/dev/null | while read -r uri; do
+      desc=$(printf '%s' "$uri" | sed -E 's|^[a-z]+://||; s|%20| |g; s|\._ipps?\._tcp.*||; s|/.*||')
+      printf '%s|%s (network)\n' "$uri" "$desc"
+    done
+    # USB printers
+    timeout 20 lpinfo -l --include-schemes usb -v 2>/dev/null | awk '
+      /^Device: uri = /{uri=$4} /make-and-model = /{sub(/.*make-and-model = /,""); if (uri!="") {print uri "|" $0 " (USB)"; uri=""}}' ;;
+
+  add)
+    uri=${2:?address}; name=$(clean_name "${3:-}")
+    [ -n "$name" ] || name=$(clean_name "$(printf '%s' "$uri" | sed -E 's|^[a-z]+://||; s|%20|_|g; s|\._ipps?\._tcp.*||; s|[/?].*||')")
+    [ -n "$name" ] || name=Printer
+    if lpadmin -p "$name" -E -v "$uri" -m everywhere 2>/dev/null; then :
+    else
+      # older USB printers: pick the best matching driver
+      id=$(lpinfo -l --include-schemes usb -v 2>/dev/null | awk -v u="$uri" '$0 ~ "uri = "u"$" {f=1} f && /device-id = /{sub(/.*device-id = /,""); print; exit}')
+      drv=""
+      [ -n "$id" ] && drv=$(lpinfo --device-id "$id" -m 2>/dev/null | awk 'NR==1{print $1}')
+      if [ -z "$drv" ]; then
+        mm=$(lpinfo -l --include-schemes usb -v 2>/dev/null | awk -v u="$uri" '$0 ~ "uri = "u"$" {f=1} f && /make-and-model = /{sub(/.*make-and-model = /,""); print; exit}')
+        [ -n "$mm" ] && drv=$(lpinfo --make-and-model "$mm" -m 2>/dev/null | awk 'NR==1{print $1}')
+      fi
+      [ -n "$drv" ] || { echo "No driver found for this printer." >&2; exit 2; }
+      lpadmin -p "$name" -E -v "$uri" -m "$drv" || exit 3
+    fi
+    make_default_if_first "$name"; echo "$name" ;;
+
+  add-ip)
+    ip=${2:?ip}; name=$(clean_name "${3:-Printer_$2}")
+    [[ "$ip" =~ ^[A-Za-z0-9.:-]+$ ]] || { echo "That isn't an IP address." >&2; exit 2; }
+    for uri in "ipp://$ip/ipp/print" "ipps://$ip/ipp/print" "ipp://$ip/ipp" "ipp://$ip/"; do
+      if timeout 30 lpadmin -p "$name" -E -v "$uri" -m everywhere 2>/dev/null; then
+        make_default_if_first "$name"; echo "$name"; exit 0
+      fi
+    done
+    echo "The printer at $ip didn't answer as a driverless (AirPrint / IPP Everywhere) printer." >&2; exit 3 ;;
+
+  default) exists "${2:-}" && lpadmin -d "$2" ;;
+  remove)  exists "${2:-}" && lpadmin -x "$2" ;;
+  test)    exists "${2:-}" && lp -d "$2" -t "EAGLE-OS test page" /usr/share/cups/data/testprint >/dev/null ;;
+  *) echo "usage: eagle-printers list|find|add ADDRESS [NAME]|add-ip IP [NAME]|default NAME|remove NAME|test NAME" >&2; exit 2 ;;
+esac

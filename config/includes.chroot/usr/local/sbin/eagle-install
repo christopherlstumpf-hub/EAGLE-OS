@@ -165,6 +165,11 @@ if [ -d /etc/NetworkManager/system-connections ]; then
   cp -a /etc/NetworkManager/system-connections/. "$TARGET/etc/NetworkManager/system-connections/" 2>>"$LOG"
   chmod 600 "$TARGET"/etc/NetworkManager/system-connections/* 2>/dev/null
 fi
+# Printers added while running from the stick
+if [ -s /etc/cups/printers.conf ]; then
+  cp -a /etc/cups/printers.conf "$TARGET/etc/cups/" 2>>"$LOG"
+  [ -d /etc/cups/ppd ] && mkdir -p "$TARGET/etc/cups/ppd" && cp -a /etc/cups/ppd/. "$TARGET/etc/cups/ppd/" 2>>"$LOG"
+fi
 if [ -d /home/kiosk/.config/eagle ]; then
   mkdir -p "$TARGET/home/kiosk/.config/eagle"
   cp -a /home/kiosk/.config/eagle/display /home/kiosk/.config/eagle/setup-done /home/kiosk/.config/eagle/startup-sound-off "$TARGET/home/kiosk/.config/eagle/" 2>/dev/null

@@ -110,6 +110,14 @@ Everything fits on one screen with no scrolling: search, compact link buttons, a
 
 Orange E button → **Colour scheme**. EAGLE Orange is the original and the default; the other eight colours come from the Mountains screensaver pictures (Sunset Gold, Sunset Ember, Dawn Glow, Alpenglow, Alpine Sky, Mountain Lake, Twilight Peaks, Pine Forest). The choice recolours the Firefox toolbar highlights, the E button, the logo's accents, the start page and the EAGLE pages; black and grey stay. The boot screens and setup screens keep the original orange.
 
+## Printers
+
+Most Wi-Fi and network printers (AirPrint, IPP Everywhere, Mopria; nearly every printer made since about 2013) show up by themselves when you print from Firefox (**Ctrl+P** or ☰ → Print). To add one for good, open the orange E menu → **Printers**:
+- **Find printers** lists printers on the network and USB; pick one to add it (the first one becomes the default).
+- **Add a network printer by IP address** for printers that don't show up (the address is on the printer's network settings).
+- **Print a test page**, **Choose the default printer**, **Remove a printer**.
+Older USB printers use the HP (hpcups) or Gutenprint drivers when they aren't driverless. Running from the stick, printers are forgotten at restart; **Install** keeps them.
+
 ## Battery
 
 On laptops the battery level shows under the clock on the start page (with time left, or "Charging" / "Plugged in"), at the top of the EAGLE menu, and as a small number on the orange E button (green with ⚡ when charging, red at 20% or less). Warnings appear at 20%, 10% and 5%; at 3% EAGLE-OS shuts down cleanly so nothing is lost. Desktops without a battery show nothing.

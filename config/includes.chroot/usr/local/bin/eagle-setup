@@ -2,7 +2,7 @@
 # EAGLE-OS setup and menu screen (runs in a full-screen terminal under cage).
 #   eagle-setup --first-run   welcome, Wi-Fi, display, sound, then start browsing
 #   eagle-setup --menu        shown when Firefox is closed: adds Updates / Install / Restart / Shut down
-#   eagle-setup --action X    open one screen (wifi, display, sound, datetime, disks, security, updates, install, menu) and return
+#   eagle-setup --action X    open one screen (wifi, display, sound, datetime, printers, disks, security, updates, install, menu) and return
 
 MODE_ARG="${1:---menu}"
 ACTION_ARG="${2:-}"
@@ -332,6 +332,69 @@ datetime_menu() {
 }
 
 # ---------- Install ----------
+# ---------- Printers ----------
+PR() { sudo -n /usr/local/sbin/eagle-printers "$@"; }
+printers_menu() {
+  local T="$TITLE · Printers"
+  while true; do
+    local list items=() summary
+    list=$(PR list 2>/dev/null)
+    if [ -z "$list" ]; then
+      summary="No printers added yet.\n\nMost Wi-Fi and network printers (AirPrint, Mopria) also show up by themselves when you print from Firefox (Ctrl+P)."
+    else
+      summary="Your printers (★ = default):\n"
+      while IFS='|' read -r name state _ def; do
+        summary+="\n  $([ "$def" = yes ] && echo "★" || echo " ") ${name//_/ }  ·  ${state}"
+      done <<< "$list"
+    fi
+    is_live && summary+="\n\nRunning from the USB stick: printers are forgotten at restart."
+    items=(find "Find printers (network and USB)" ip "Add a network printer by IP address")
+    [ -n "$list" ] && items+=(test "Print a test page" default "Choose the default printer" remove "Remove a printer")
+    items+=(back "Back")
+    local choice
+    choice=$(whiptail --title "$T" --menu "$summary" 24 $W 7 "${items[@]}" 3>&1 1>&2 2>&3) || return
+    case "$choice" in
+      find)
+        whiptail --title "$T" --infobox "Looking for printers on the network and USB…\n\nThis takes up to 20 seconds. Make sure the printer is on." 9 $W
+        local found opts=() i=0 pick uri desc out
+        found=$(PR find 2>/dev/null | sort -u)
+        if [ -z "$found" ]; then
+          whiptail --title "$T" --msgbox "No printers found.\n\n• Turn the printer on and connect it to the same Wi-Fi, or plug in its USB cable.\n• Or add it by IP address (it's on the printer's network settings page)." 13 $W
+          continue
+        fi
+        declare -A URI=()
+        while IFS='|' read -r uri desc; do i=$((i+1)); URI[$i]=$uri; opts+=("$i" "$desc"); done <<< "$found"
+        pick=$(whiptail --title "$T" --menu "Choose the printer to add:" 20 $W 10 "${opts[@]}" 3>&1 1>&2 2>&3) || continue
+        whiptail --title "$T" --infobox "Adding the printer…" 7 $W
+        if out=$(PR add "${URI[$pick]}" 2>&1); then
+          whiptail --title "$T" --msgbox "Added: ${out//_/ }\n\nIt's ready: print from Firefox with Ctrl+P (or ☰ menu → Print)." 10 $W
+        else
+          whiptail --title "$T" --msgbox "Couldn't add this printer.\n\n$out" 11 $W
+        fi ;;
+      ip)
+        local ip out
+        ip=$(whiptail --title "$T" --inputbox "The printer's IP address (for example 192.168.1.50).\nIt's on the printer's screen under network or Wi-Fi settings." 11 $W 3>&1 1>&2 2>&3) || continue
+        [ -n "$ip" ] || continue
+        whiptail --title "$T" --infobox "Contacting the printer at $ip…" 7 $W
+        if out=$(PR add-ip "$ip" 2>&1); then
+          whiptail --title "$T" --msgbox "Added: ${out//_/ }\n\nPrint from Firefox with Ctrl+P (or ☰ menu → Print)." 10 $W
+        else
+          whiptail --title "$T" --msgbox "Couldn't add the printer.\n\n$out\n\nCheck the address and that the printer is on the same network." 13 $W
+        fi ;;
+      test|default|remove)
+        local opts=() name pick
+        while IFS='|' read -r name _ _ _; do opts+=("$name" "${name//_/ }"); done <<< "$list"
+        pick=$(whiptail --title "$T" --menu "Which printer?" 18 $W 8 "${opts[@]}" 3>&1 1>&2 2>&3) || continue
+        case "$choice" in
+          test)    PR test "$pick" && whiptail --title "$T" --msgbox "Test page sent to ${pick//_/ }." 8 $W ;;
+          default) PR default "$pick" ;;
+          remove)  whiptail --title "$T" --yesno "Remove ${pick//_/ }?" 8 $W && PR remove "$pick" ;;
+        esac ;;
+      back|*) return ;;
+    esac
+  done
+}
+
 is_live() { [ -d /run/live/medium ]; }
 install_eagle() { sudo -n /usr/local/sbin/eagle-install; }
 
@@ -346,6 +409,7 @@ if [ "$MODE_ARG" = "--action" ]; then
     datetime) datetime_menu ;;
     disks)   disks_gparted ;;
     security) security_menu ;;
+    printers) printers_menu ;;
     updates) updates_menu ;;
     install) install_eagle ;;
     *)       MODE_ARG="--menu" ;;
@@ -360,7 +424,7 @@ fi
 while true; do
   items=(browse "Start browsing" wifi "Wi-Fi and network" display "Display and screen size" sound "Sound" datetime "Date and time")
   if [ "$MODE_ARG" = "--menu" ]; then
-    items+=(security "Security (antivirus)" disks "Disks and partitions (GParted)" updates "Updates")
+    items+=(printers "Printers" security "Security (antivirus)" disks "Disks and partitions (GParted)" updates "Updates")
   fi
   if is_live; then
     items+=(install "Install EAGLE-OS on this PC (wipes a drive)")
@@ -376,6 +440,7 @@ while true; do
     datetime) datetime_menu ;;
     disks)    disks_gparted ;;
     security) security_menu ;;
+    printers) printers_menu ;;
     updates)  updates_menu ;;
     install)  install_eagle ;;
     restart)  systemctl reboot; exit 0 ;;

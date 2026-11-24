@@ -41,6 +41,10 @@ if [ -f /etc/UPower/UPower.conf ]; then
          -e 's/^PercentageAction=.*/PercentageAction=3/' -e 's/^CriticalPowerAction=.*/CriticalPowerAction=PowerOff/' /etc/UPower/UPower.conf
 fi
 
+# Printers: EAGLE menu > Printers (eagle-printers runs as root via sudo)
+chmod 0755 /usr/local/sbin/eagle-printers
+systemctl enable cups.service avahi-daemon.service 2>/dev/null || true
+
 # Mac support: camera firmware download (does nothing on other PCs)
 chmod 0755 /usr/local/sbin/eagle-facetime-firmware
 systemctl enable eagle-facetime-firmware.service

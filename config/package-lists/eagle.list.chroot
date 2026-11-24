@@ -100,3 +100,12 @@ xz-utils
 
 # Battery: safe shutdown when nearly empty
 upower
+
+# Printing: driverless network/USB printers (AirPrint, IPP Everywhere, Mopria) plus HP and Gutenprint drivers
+cups
+cups-filters
+ipp-usb
+avahi-daemon
+libnss-mdns
+printer-driver-hpcups
+printer-driver-gutenprint
