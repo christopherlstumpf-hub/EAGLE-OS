@@ -1,0 +1,13 @@
+#!/bin/sh
+# EAGLE-OS: show a notice in the start page's Notifications panel.
+#   eagle-notify KIND "Title" "Text" [screen]     KIND: security|updates|battery|info
+EV=/run/eagle-events
+[ -d "$EV" ] || exit 0
+python3 - "$EV" "$@" <<'PY'
+import json, sys, time
+ev, kind, title, text = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+screen = sys.argv[5] if len(sys.argv) > 5 else ""
+n = time.time_ns()
+with open(f"{ev}/notice-{n}.json", "w") as f:
+    json.dump({"type": "notice", "kind": kind, "title": title, "text": text, "screen": screen, "time": n // 1000000}, f)
+PY

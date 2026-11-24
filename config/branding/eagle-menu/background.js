@@ -83,6 +83,8 @@ function handleMessage(msg, sender) {
       return syncCalendars(true);
     case "get-battery":
       return Promise.resolve(lastBattery);
+    case "open-notice":
+      return openNotice(msg.action || {});
     case "get-settings":
       return settingsReady.then(() => settings);
     case "get-state":
@@ -127,12 +129,26 @@ async function closeSaver() {
 
 async function resetToStart() {
   suppress();
+  await tabsReady;
   const tabs = await browser.tabs.query({});
-  const keep = saver ? saver.tabId : null;
-  const startTab = await browser.tabs.create({ url: START, active: !saver });
-  const close = tabs.filter((t) => t.id !== keep && t.id !== startTab.id).map((t) => t.id);
+  const keep = new Set([saver ? saver.tabId : null, startTabId, ...Object.values(linkTabs)]);
+  const close = tabs.filter((t) => !keep.has(t.id)).map((t) => t.id);
   if (close.length) { try { await browser.tabs.remove(close); } catch (e) { /* some gone */ } }
-  if (saver) saver.prevTabId = startTab.id;
+  // link tabs back to their (unloaded) starting point
+  const links = await eagleAllLinks();
+  for (const l of links) {
+    const id = linkTabs[l.url];
+    if (id == null) continue;
+    try {
+      const t = await browser.tabs.get(id);
+      if (!(t.url || "").startsWith(LINKTAB)) await browser.tabs.update(id, { url: linkTabUrl(l) });
+    } catch (e) { delete linkTabs[l.url]; }
+  }
+  await ensureTabs(true);
+  if (startTabId != null) {
+    if (saver) saver.prevTabId = startTabId;
+    else browser.tabs.update(startTabId, { active: true }).catch(() => {});
+  }
 }
 
 async function tick() {
@@ -215,20 +231,16 @@ async function checkBattery() {
   let b = null;
   try { b = await browser.runtime.sendNativeMessage("eagle", { action: "battery" }); } catch (e) { return; }
   lastBattery = b;
-  const ba = ACTION;
-  if (!b || !b.present || b.percent == null) {
-    ba.setBadgeText({ text: "" }); ba.setTitle({ title: "EAGLE-OS menu" }); return;
-  }
-  const low = !b.plugged && !b.charging && b.percent <= 20;
-  const text = b.charging ? "⚡" + b.percent : (b.plugged ? "⚡" : b.percent + "%");
-  ba.setBadgeText({ text });
-  ba.setBadgeBackgroundColor({ color: low ? "#e0483e" : (b.charging || b.plugged ? "#2e7d32" : "#3a3a3a") });
-  if (ba.setBadgeTextColor) ba.setBadgeTextColor({ color: "#ffffff" });
-  ba.setTitle({ title: "EAGLE-OS menu · " + batteryText(b) });
+  // the battery shows on the start page only (not on the E button)
+  ACTION.setBadgeText({ text: "" });
+  if (!b || !b.present || b.percent == null) return;
   browser.runtime.sendMessage({ type: "battery", battery: b }).catch(() => {});
 
   // low battery warnings at 20%, 10% and 5% (once each per discharge)
-  if (b.plugged || b.charging) { warned.clear(); return; }
+  if (b.plugged || b.charging) {
+    if (warned.size) removeNotice("battery");
+    warned.clear(); return;
+  }
   for (const level of [5, 10, 20]) {
     if (b.percent <= level && !warned.has(level)) {
       [5, 10, 20].filter((x) => x >= level).forEach((x) => warned.add(x));
@@ -239,6 +251,7 @@ async function checkBattery() {
       const warn = { type: "battery-warn", text: msg, critical: level === 5, accent: currentAccent };
       if (tab) browser.tabs.sendMessage(tab.id, warn).catch(() => {});
       browser.runtime.sendMessage(warn).catch(() => {});   // EAGLE pages (start page, settings)
+      setNotice({ id: "battery", kind: "battery", title: "Low battery: " + b.percent + "%", text: msg, action: { type: "none" } });
       break;
     }
   }
@@ -313,37 +326,134 @@ async function applyAccent(accent) {
 browser.storage.local.get({ accent: EAGLE_DEFAULT_ACCENT }).then((s) => applyAccent(s.accent));
 browser.storage.onChanged.addListener((ch) => { if (ch.accent) applyAccent(ch.accent.newValue); });
 
-// ---------- Startup guard: Firefox always opens on the EAGLE start page ----------
-// On some PCs Firefox can show a welcome/privacy page, a blank tab or an error before the
-// EAGLE add-on is ready. For the first 30 seconds, swap any such tab for the start page.
+// ---------- Tabs: the EAGLE tab is always first (pinned, can't be closed) and the link tabs ----------
+// ---------- follow it in alphabetical order. A link tab loads its site only when clicked. ----------
 const START_URL = browser.runtime.getURL("start.html");
-const NOT_EAGLE = /^(about:(blank|home|newtab|welcome|privatebrowsing|sessionrestore|tabcrashed|neterror|certerror)|moz-extension:\/\/[^/]+\/?$|chrome:\/\/(newtab|new-tab-page|welcome|intro|whats-new)|chrome-search:)|^https?:\/\/(www\.)?mozilla\.org\/.*(privacy|firstrun|whatsnew|welcome)|^https?:\/\/(www\.)?firefox\.com\//i;
-const FIRST_RUN_PAGE = /^about:(welcome|sessionrestore)|^chrome:\/\/(welcome|intro|whats-new)|^https?:\/\/(www\.)?google\.com\/chrome\/|^https?:\/\/(www\.)?mozilla\.org\/|^https?:\/\/(www\.)?firefox\.com\//i;
+const LINKTAB = browser.runtime.getURL("linktab.html");
+// Startup: Firefox/Chrome may show a welcome/privacy page or a blank tab before EAGLE is ready.
+const STRAY = /^(about:(blank|home|newtab|welcome|privatebrowsing|sessionrestore|tabcrashed)|moz-extension:\/\/[^/]+\/?$|chrome:\/\/(newtab|new-tab-page|welcome|intro|whats-new)|chrome-search:)|^https?:\/\/(www\.)?mozilla\.org\/.*(privacy|firstrun|whatsnew|welcome)|^https?:\/\/(www\.)?firefox\.com\/|^https?:\/\/(www\.)?google\.com\/chrome\//i;
+let startTabId = null;
+let linkTabs = {};                       // site address -> tab id
+const tabsReady = (async () => {         // Chrome: remember the tab ids across service worker restarts
+  if (!EAGLE_IS_CHROME || !browser.storage.session) return;
+  try {
+    const t = (await browser.storage.session.get("tabs")).tabs;
+    if (t) { startTabId = t.startTabId; linkTabs = t.linkTabs || {}; }
+  } catch (e) { /* ignore */ }
+})();
+function saveTabs() {
+  if (EAGLE_IS_CHROME && browser.storage.session) browser.storage.session.set({ tabs: { startTabId, linkTabs } }).catch(() => {});
+}
+function linkTabUrl(l) {
+  return LINKTAB + "?u=" + encodeURIComponent(l.url) + "&t=" + encodeURIComponent(l.title) + "&c=" + encodeURIComponent(currentAccent);
+}
+function placeholderTarget(url) {
+  if (!(url || "").startsWith(LINKTAB)) return null;
+  try { return new URL(url).searchParams.get("u"); } catch (e) { return null; }
+}
+const tabUrl = (t) => t.url || t.pendingUrl || "";
+let tabsChain = Promise.resolve();
+function ensureTabs(create) {                // one at a time
+  tabsChain = tabsChain.then(() => doEnsureTabs(create)).catch(() => {});
+  return tabsChain;
+}
+async function doEnsureTabs(create) {
+  await tabsReady;
+  let win;
+  try { win = await browser.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }); } catch (e) { return; }
+  if (!win || win.type !== "normal" || !win.tabs) return;
+  const tabs = win.tabs;
+  suppress();
+  // EAGLE tab: first and pinned
+  let st = tabs.find((t) => t.id === startTabId) || tabs.find((t) => tabUrl(t).startsWith(START_URL));
+  if (!st) st = await browser.tabs.create({ windowId: win.id, url: START_URL, index: 0, pinned: true, active: tabs.length === 0 });
+  startTabId = st.id;
+  if (!st.pinned) await browser.tabs.update(st.id, { pinned: true }).catch(() => {});
+  if (st.index !== 0) await browser.tabs.move(st.id, { index: 0 }).catch(() => {});
+
+  // link tabs, A to Z
+  const links = (await eagleAllLinks()).sort((x, y) => x.title.localeCompare(y.title, undefined, { sensitivity: "base" }));
+  const wanted = new Set(links.map((l) => l.url));
+  const ids = new Set(tabs.map((t) => t.id));
+  for (const u of Object.keys(linkTabs)) if (!ids.has(linkTabs[u])) delete linkTabs[u];
+  for (const t of tabs) { const u = placeholderTarget(tabUrl(t)); if (u && linkTabs[u] == null) linkTabs[u] = t.id; }
+  for (const u of Object.keys(linkTabs)) {
+    if (wanted.has(u)) continue;
+    const t = tabs.find((x) => x.id === linkTabs[u]);
+    if (t && placeholderTarget(tabUrl(t))) await browser.tabs.remove(t.id).catch(() => {});
+    delete linkTabs[u];
+  }
+  let index = 1;
+  for (const l of links) {
+    let id = linkTabs[l.url];
+    if (id == null) {
+      if (!create) continue;
+      const t = await browser.tabs.create({ windowId: win.id, url: linkTabUrl(l), index, active: false }).catch(() => null);
+      if (!t) continue;
+      id = linkTabs[l.url] = t.id;
+    } else {
+      const t = tabs.find((x) => x.id === id);
+      if (t && t.index !== index) await browser.tabs.move(id, { index }).catch(() => {});
+    }
+    index++;
+  }
+  saveTabs();
+}
+
+// The EAGLE tab can't be closed, moved or used for other sites
+browser.tabs.onRemoved.addListener((tabId, info) => {
+  for (const u of Object.keys(linkTabs)) if (linkTabs[u] === tabId) { delete linkTabs[u]; saveTabs(); }
+  if (tabId !== startTabId || info.isWindowClosing) return;
+  startTabId = null;
+  ensureTabs(false);
+});
+browser.tabs.onMoved.addListener((tabId, info) => {
+  if (tabId === startTabId && info.toIndex !== 0) browser.tabs.move(tabId, { index: 0 }).catch(() => {});
+  else if (tabId !== startTabId && info.toIndex === 0 && startTabId != null) browser.tabs.move(startTabId, { index: 0 }).catch(() => {});
+});
+browser.tabs.onUpdated.addListener((tabId, info) => {
+  if (tabId !== startTabId || !info.url) return;
+  const u = info.url;
+  if (u.startsWith(START_URL) || /^(about:blank|chrome:\/\/newtab)/.test(u)) return;
+  // something was opened in the EAGLE tab: open it in its own tab, and bring the EAGLE page back
+  browser.tabs.create({ url: u, active: true }).catch(() => {});
+  browser.tabs.update(tabId, { url: START_URL }).catch(() => {});
+});
+async function focusStart() {
+  await tabsReady;
+  if (startTabId == null) await ensureTabs(false);
+  if (startTabId != null) {
+    const t = await browser.tabs.update(startTabId, { active: true }).catch(() => null);
+    if (t) browser.windows.update(t.windowId, { focused: true }).catch(() => {});
+  }
+}
+
+// Startup: tidy up, then the EAGLE tab + link tabs
 let guardUntil = 0;
 let guardRuns = 0;
 async function startupGuard() {
   if (Date.now() > guardUntil) return;
+  await tabsReady;
   let tabs = [];
   try { tabs = await browser.tabs.query({}); } catch (e) { return; }
-  if (!tabs.length) return;
   // The start page may have tried to load before the add-on was ready: load it again once.
   if (guardRuns++ === 0) {
-    for (const t of tabs) if ((t.url || "").startsWith(START_URL)) browser.tabs.reload(t.id).catch(() => {});
+    for (const t of tabs) if (tabUrl(t).startsWith(START_URL)) browser.tabs.reload(t.id).catch(() => {});
   }
-  const hasStart = tabs.some((t) => (t.url || "").startsWith(START_URL));
-  if (!hasStart) {
-    const early = Date.now() < guardUntil - 27000;   // only in the first 3 seconds: any lone page
-    const first = tabs.find((t) => NOT_EAGLE.test(t.url || "about:blank")) || (early && tabs.length === 1 ? tabs[0] : null);
-    if (first) await browser.tabs.update(first.id, { url: START_URL, active: true }).catch(() => {});
+  const ours = new Set([startTabId, ...Object.values(linkTabs)]);
+  const hasStart = tabs.some((t) => tabUrl(t).startsWith(START_URL));
+  const stray = tabs.filter((t) => !ours.has(t.id) && STRAY.test(tabUrl(t) || "about:blank"));
+  if (!hasStart && stray.length) {
+    const first = stray.shift();
+    await browser.tabs.update(first.id, { url: START_URL }).catch(() => {});
   }
-  // Close Mozilla welcome / privacy / what's-new tabs
-  const extra = tabs.filter((t) => FIRST_RUN_PAGE.test(t.url || ""));
-  if (extra.length && extra.length < tabs.length) await browser.tabs.remove(extra.map((t) => t.id)).catch(() => {});
+  if (stray.length && stray.length < tabs.length) await browser.tabs.remove(stray.map((t) => t.id)).catch(() => {});
+  await ensureTabs(true);
 }
 function startGuards() {
   guardUntil = Date.now() + 30000;
   guardRuns = 0;
-  for (const ms of [500, 2000, 5000, 10000, 20000]) setTimeout(startupGuard, ms);
+  for (const ms of [800, 3000, 8000, 20000]) setTimeout(startupGuard, ms);
 }
 // Firefox loads this page once per start; Chrome's service worker restarts often, so use its startup event
 if (EAGLE_IS_CHROME) {
@@ -352,8 +462,7 @@ if (EAGLE_IS_CHROME) {
 } else {
   startGuards();
 }
-browser.tabs.onCreated.addListener(() => { if (Date.now() < guardUntil) setTimeout(startupGuard, 800); });
-browser.tabs.onUpdated.addListener((id, info) => { if (info.url && Date.now() < guardUntil) setTimeout(startupGuard, 300); });
+browser.storage.onChanged.addListener((ch) => { if (ch.links) ensureTabs(true); });
 
 // ---------- Shared settings: links, calendars, colours and screen timeout are the same in ----------
 // ---------- Firefox and Chrome (kept in ~/.config/eagle/addon-settings.json by eagle-native) ----------
@@ -378,3 +487,116 @@ function shareSettings(changes) {
     }
   } catch (e) { importing = false; }
 })();
+
+// ---------- Notifications for the start page: email, messages, alerts ----------
+let noticeChain = Promise.resolve();
+function editNotices(fn) {
+  noticeChain = noticeChain.then(async () => {
+    const list = (await browser.storage.local.get({ notices: [] })).notices || [];
+    const next = fn(list);
+    if (next) await browser.storage.local.set({ notices: next.slice(0, 30) });
+  }).catch(() => {});
+  return noticeChain;
+}
+function setNotice(n) {
+  return editNotices((list) => {
+    const old = list.find((x) => x.id === n.id);
+    if (old && old.title === n.title && old.text === n.text) return null;       // nothing new
+    const keepTime = old && n.keepTime;
+    return [{ ...n, time: keepTime ? old.time : (n.time || Date.now()) }].concat(list.filter((x) => x.id !== n.id));
+  });
+}
+function removeNotice(id) {
+  return editNotices((list) => (list.some((x) => x.id === id) ? list.filter((x) => x.id !== id) : null));
+}
+
+// Gmail: "You have N new emails" when signed in to Gmail in this browser (checked every 5 minutes)
+function unescapeXml(t) {
+  return (t || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, "&").trim();
+}
+let gmailCount = -1;
+async function checkGmail() {
+  try {
+    const r = await fetch("https://mail.google.com/mail/feed/atom", { credentials: "include", cache: "no-store", redirect: "follow" });
+    if (!r.ok) return;
+    const x = await r.text();
+    const m = /<fullcount>(\d+)<\/fullcount>/.exec(x);
+    if (!m) return;                                    // not signed in
+    const n = +m[1];
+    if (!n) { gmailCount = 0; removeNotice("gmail"); return; }
+    const e = /<entry>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<author>[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(x);
+    setNotice({ id: "gmail", kind: "email", title: n === 1 ? "You have 1 new email" : `You have ${n} new emails`,
+      text: e ? unescapeXml(e[2]) + ": " + (unescapeXml(e[1]) || "(no subject)") : "Gmail",
+      action: { type: "url", value: "https://mail.google.com/" }, keepTime: n <= gmailCount });
+    gmailCount = n;
+  } catch (e) { /* offline */ }
+}
+checkGmail();
+every("gmail", 5 * 60000, checkGmail);
+
+// Unread counts that sites show in their tab titles, like "(3) Facebook" or "Inbox (5) - Gmail"
+const COUNT_RE = /\((\d{1,4})\+?\)/;
+async function siteName(url) {
+  let host = "";
+  try { host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) { return ""; }
+  const links = await eagleAllLinks();
+  const l = links.find((x) => { try { return new URL(x.url).hostname.replace(/^www\./, "") === host; } catch (e) { return false; } });
+  return l ? l.title : host;
+}
+browser.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+  if (info.title === undefined || !/^https?:/.test(tab.url || "")) return;
+  let host = "";
+  try { host = new URL(tab.url).hostname; } catch (e) { return; }
+  const m = COUNT_RE.exec(info.title);
+  const n = m ? +m[1] : 0;
+  if (host === "mail.google.com") {
+    if (!n) { removeNotice("gmail"); return; }
+    setNotice({ id: "gmail", kind: "email", title: n === 1 ? "You have 1 new email" : `You have ${n} new emails`,
+      text: "Gmail", action: { type: "tab", value: tabId, url: "https://mail.google.com/" }, keepTime: n <= gmailCount });
+    gmailCount = n;
+    return;
+  }
+  const id = "tab:" + host;
+  if (!n) { removeNotice(id); return; }
+  const name = await siteName(tab.url);
+  setNotice({ id, kind: "message", title: `${name}: ${n} new`, text: info.title.replace(COUNT_RE, "").replace(/\s+/g, " ").trim(),
+    action: { type: "tab", value: tabId, url: tab.url } });
+});
+
+// Opening a notification
+async function openNotice(a) {
+  if (a.type === "tab") {
+    const t = await browser.tabs.update(a.value, { active: true }).catch(() => null);
+    if (t) return;
+    a = { type: "url", value: a.url };
+  }
+  if (a.type === "url" && a.value) {
+    await tabsReady;
+    const id = linkTabs[a.value];
+    if (id != null && await browser.tabs.update(id, { active: true }).catch(() => null)) return;
+    await browser.tabs.create({ url: a.value, active: true }).catch(() => {});
+  } else if (a.type === "page" && a.value) {
+    await browser.tabs.create({ url: browser.runtime.getURL(a.value), active: true }).catch(() => {});
+  }
+}
+
+// From the system (eagle-key / eagle-notify): MacBook F3 = EAGLE tab, F4 = EAGLE menu; notices
+let nativePort = null;
+function listenNative() {
+  try {
+    nativePort = browser.runtime.connectNative("eagle");
+    nativePort.onMessage.addListener((ev) => {
+      if (!ev || !ev.type) return;
+      if (ev.type === "key" && ev.key === "start") focusStart();
+      else if (ev.type === "key" && ev.key === "menu") browser.runtime.sendNativeMessage("eagle", { action: "menu" }).catch(() => {});
+      else if (ev.type === "notice") {
+        setNotice({ id: "ev:" + ev.kind + ":" + ev.time, kind: ev.kind || "info", title: ev.title || "EAGLE-OS", text: ev.text || "",
+          action: ev.screen ? { type: "screen", value: ev.screen } : { type: "none" }, time: ev.time || Date.now() });
+      }
+    });
+    nativePort.onDisconnect.addListener(() => { nativePort = null; setTimeout(listenNative, 10000); });
+    nativePort.postMessage({ action: "listen" });
+  } catch (e) { setTimeout(listenNative, 10000); }
+}
+listenNative();

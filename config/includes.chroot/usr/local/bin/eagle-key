@@ -1,0 +1,10 @@
+#!/bin/sh
+# EAGLE-OS special keys -> EAGLE add-on: eagle-key start (Mac F3: show the EAGLE start page)
+#                                        eagle-key menu  (Mac F4: open the EAGLE menu screen)
+# The add-on's native helper watches /run/eagle-events and passes events on to the browser.
+EV=/run/eagle-events
+[ -d "$EV" ] || exit 0
+case "$1" in
+  start|menu) printf '{"type":"key","key":"%s"}\n' "$1" > "$EV/key-$(date +%s%N).json" ;;
+  *) exit 2 ;;
+esac

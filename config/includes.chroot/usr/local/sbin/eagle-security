@@ -95,6 +95,9 @@ scan() {
   echo "$out" | grep -E 'FOUND$' | sed 's/^/  /'
   found=$(echo "$out" | awk -F': ' '/^Infected files:/ {print $2}')
   set_state last_scan "$(now)" last_scan_kind "$kind" last_scan_threats "${found:-0}"
+  if [ "${found:-0}" -gt 0 ]; then
+    /usr/local/bin/eagle-notify security "Antivirus: ${found} threat(s) quarantined" "Found during the ${kind} scan and moved to quarantine. Open Security for details." security
+  fi
   refresh_state
   echo "SCAN_RESULT kind=$kind infected=${found:-0} rc=$rc"
   [ "$rc" -le 1 ]

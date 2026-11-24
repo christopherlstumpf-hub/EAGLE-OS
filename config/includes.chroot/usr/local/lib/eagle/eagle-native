@@ -91,9 +91,58 @@ def battery():
             "minutes": minutes}
 
 
+EVENTS = "/run/eagle-events"
+SEEN = os.path.expanduser("~/.config/eagle/events-seen")
+
+
+def listen():
+    """Long-lived connection from the add-on: pass on special keys and notices as they arrive."""
+    import select, time
+    try:
+        seen = int(open(SEEN).read().strip())
+    except (OSError, ValueError):
+        seen = 0
+    while True:
+        r, _, _ = select.select([sys.stdin], [], [], 0.4)
+        if r and not sys.stdin.buffer.peek(1):
+            return                                  # browser closed the connection
+        try:
+            names = sorted(os.listdir(EVENTS))
+        except OSError:
+            names = []
+        newest = seen
+        for name in names:
+            if not name.endswith(".json"):
+                continue
+            try:
+                stamp = int(name.rsplit("-", 1)[1][:-5])
+            except (IndexError, ValueError):
+                continue
+            if stamp <= seen:
+                continue
+            newest = max(newest, stamp)
+            try:
+                with open(os.path.join(EVENTS, name)) as f:
+                    ev = json.load(f)
+            except (OSError, ValueError):
+                continue
+            # special keys are only useful right away
+            if ev.get("type") == "key" and time.time_ns() - stamp > 10_000_000_000:
+                continue
+            send(ev)
+        if newest != seen:
+            seen = newest
+            os.makedirs(os.path.dirname(SEEN), exist_ok=True)
+            with open(SEEN, "w") as f:
+                f.write(str(seen))
+
+
 def main():
     msg = read_msg()
     action = str(msg.get("action", ""))
+    if action == "listen":
+        send({"ok": True, "listening": True})
+        return listen()
     live = os.path.isdir("/run/live/medium")
     if action == "status":
         try:

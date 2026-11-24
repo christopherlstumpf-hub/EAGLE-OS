@@ -1,0 +1,10 @@
+#!/bin/sh
+# EAGLE-OS media keys (Mac F7/F8/F9 and media keys on other keyboards): control what plays in
+# the browser (Firefox and Chrome publish their media controls on the session bus).
+XDG_RUNTIME_DIR="/run/user/$(id -u)"
+DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+export XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS
+case "$1" in
+  play-pause|next|previous) exec playerctl "$1" ;;
+  *) exit 2 ;;
+esac

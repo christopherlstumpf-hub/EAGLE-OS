@@ -10,6 +10,9 @@
 # display instead (works with any screen).
 
 CONF="$HOME/.config/eagle"
+# session bus for the browsers' media controls (Mac F7/F8/F9 and media keys)
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+[ -S "$XDG_RUNTIME_DIR/bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
 REQUEST="$CONF/request"
 APPLOG="$CONF/session.log"   # app messages go here instead of flashing on screen
 RENDERER_FILE="$CONF/renderer"

@@ -31,7 +31,7 @@ plymouth-set-default-theme eagle
 update-initramfs -u -k all || true  # live-build also rebuilds it later
 
 # F9 / F10 volume keys
-chmod 0755 /usr/local/bin/eagle-volume /usr/local/bin/eagle-brightness
+chmod 0755 /usr/local/bin/eagle-volume /usr/local/bin/eagle-brightness /usr/local/bin/eagle-media /usr/local/bin/eagle-kbdlight /usr/local/bin/eagle-key /usr/local/bin/eagle-notify
 systemd-hwdb update
 systemctl enable triggerhappy.service 2>/dev/null || true
 

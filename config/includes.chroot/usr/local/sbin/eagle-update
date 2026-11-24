@@ -23,7 +23,11 @@ case "${1:-}" in
     apt-get clean
     date '+%B %-d, %Y %-I:%M %p' > "$STAMP"
     echo; echo "Updates installed."
-    if [ -f /run/reboot-required ]; then echo "Restart EAGLE-OS to finish."; exit 10; fi
+    if [ -f /run/reboot-required ]; then
+      /usr/local/bin/eagle-notify updates "Updates installed" "Restart EAGLE-OS to finish installing them." 2>/dev/null
+      echo "Restart EAGLE-OS to finish."; exit 10
+    fi
+    /usr/local/bin/eagle-notify updates "Updates installed" "EAGLE-OS is up to date." 2>/dev/null
     ;;
   check)
     apt-get update -qq >/dev/null 2>&1 || { echo "offline"; exit 1; }

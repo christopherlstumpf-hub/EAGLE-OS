@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "EAGLE-OS menu",
-  "version": "2.2",
+  "version": "2.3",
   "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Date and time, Camera, calendar links, Security, Disks, Updates, screen timeout and screensaver",
   "browser_specific_settings": {
     "gecko": {
@@ -33,6 +33,7 @@
       "shim.js",
       "theme.js",
       "ical.js",
+      "links-data.js",
       "background.js"
     ]
   },

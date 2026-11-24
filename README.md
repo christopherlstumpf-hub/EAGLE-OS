@@ -101,10 +101,19 @@ EAGLE-OS runs on Debian 13. By default it installs Debian's security and regular
 
 If you're running straight from the stick or card (Run EAGLE-OS), updates are lost at restart. Install EAGLE-OS to keep it updated.
 
-## Start page
-Everything fits on one screen with no scrolling: search, compact link buttons, an **Install EAGLE-OS** banner when running from the stick, and the month calendar on the right. Security and Screen timeout / screensaver live in the orange **E** menu; the start page only shows a red notice if the antivirus has quarantined something.
+## Start page (the EAGLE tab)
 
-**Link buttons:** Google, Gmail, YouTube, Maps, News and Weather are always there. Use **+ Add link** for your own sites (a name and a web address like `facebook.com`). Turn on **Edit links** to show a ✕ that removes them. Spotify, Wi-Fi and Facebook start as removable links (Camera test and the EAGLE menu are in the orange E menu). Your links are kept on installed PCs; running from the stick they reset at restart. "by Stumpf Technology" is at the bottom of the start page and the version (for example *EAGLE-OS Lite · Build 38*) is in the lower right corner and at the top of the E menu. On the right is a **month calendar** (today in orange, with previous/next month and a **Set date and time** link). The default time zone is US Eastern; change it under **Date and time**.
+The **EAGLE tab** is always the first tab: pinned, it can't be closed or moved (if it's closed anyway it comes straight back), and anything typed into it opens in a new tab. It has no buttons, just:
+- an **analog clock** with the date and time, and the **battery** (laptops) under it;
+- **Notifications**: new Gmail email (when signed in to Gmail in the browser), unread counts that sites show in their tabs (like "(3) Facebook"), calendar events starting within the hour, antivirus finds, installed updates, low battery and **Install EAGLE-OS** when running from the stick. Click one to open it, ✕ to dismiss, or **Clear all**;
+- the **month calendar** on the right, with today's events and what's coming up.
+"by Stumpf Technology" is at the bottom and the version (for example *EAGLE-OS · Build 48*) in the lower right corner. The default time zone is US Eastern; change it under **Date and time**.
+
+**Link tabs:** the sites open as tabs right after the EAGLE tab, in A–Z order: Google, Gmail, YouTube, Maps, News and Weather always, plus your own (Spotify and Facebook to start). Each loads its site only when you click its tab. Add or remove your own in the orange E menu → **Link tabs**. When the screen timeout returns to the EAGLE tab, the other tabs close and the link tabs go back to their sites' start.
+
+## MacBook function keys
+
+F1/F2 screen brightness · F3 (Mission Control) shows the EAGLE tab · F4 (Launchpad) opens the EAGLE menu screen · F5/F6 keyboard backlight · F7/F8/F9 previous / play-pause / next for music and video in the browser · F10 mute · F11/F12 volume.
 
 ## Colour scheme
 

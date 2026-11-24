@@ -7,16 +7,30 @@
 <style>
   :root { --black:#000; --panel:#1b1b1b; --panel2:#151515; --grey:#3a3a3a; --text:#d6d6d6; --dim:#8a8a8a; --orange:#ff7a00; --red:#e0483e; --green:#7fb069; }
   * { box-sizing:border-box; }
-  html,body { margin:0; min-height:100%; background:var(--black); color:var(--text);
-    font-family: "Noto Sans", "DejaVu Sans", sans-serif; }
-  body { display:grid; grid-template-columns: 1fr; min-height:100vh; }
-  @media (min-width:900px) { body { grid-template-columns: 1fr 320px; } }
+  html, body { margin:0; height:100%; overflow:hidden; background:var(--black); color:var(--text);
+    font-family:"Noto Sans", "DejaVu Sans", sans-serif; }
+  body { display:grid; grid-template-columns:1fr; height:100vh; }
+  @media (min-width:900px) { body { grid-template-columns:1fr 320px; } }
   @media (max-width:899px) { aside { display:none !important; } }
 
-  /* ---- main column ---- */
-  main { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:40px 20px; }
-  .logo { width:min(560px, 80vw); height:auto; }
-  .bar { width:min(280px, 40vw); height:4px; background:var(--orange); margin-top:-14px; }
+  /* ---- main: logo, analog clock, notifications ---- */
+  main { min-height:0; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; padding:16px 24px 40px; }
+  .logo { width:min(340px, 50vw); max-height:11vh; object-fit:contain; }
+  .bar { width:min(220px, 34vw); height:4px; background:var(--orange); margin-top:-10px; }
+  .row { display:flex; gap:28px; align-items:stretch; justify-content:center; width:100%; max-width:960px; min-height:0; flex:0 1 auto; }
+  .clock-card { display:flex; flex-direction:column; align-items:center; gap:10px; flex:none; }
+  #analog { width:min(260px, 38vh); height:min(260px, 38vh); }
+  #analog .face { fill:var(--panel); stroke:var(--grey); stroke-width:2; }
+  #analog .tick { stroke:#6a6a6a; stroke-width:2; stroke-linecap:round; }
+  #analog .tick.big { stroke:var(--text); stroke-width:4; }
+  #analog .hour { stroke:#f2f2f2; stroke-width:8; stroke-linecap:round; }
+  #analog .min { stroke:#f2f2f2; stroke-width:5; stroke-linecap:round; }
+  #analog .sec { stroke:var(--orange); stroke-width:2; stroke-linecap:round; }
+  #analog .hub { fill:var(--orange); }
+  #analog .num { fill:var(--dim); font-size:15px; font-weight:700; text-anchor:middle; dominant-baseline:central; }
+  #date { color:var(--text); font-size:16px; letter-spacing:.04em; text-align:center; }
+  #date b { color:#fff; font-size:22px; display:block; letter-spacing:.02em; }
   .battery { display:flex; align-items:center; gap:8px; color:var(--dim); font-size:14px; margin-top:-8px; }
   .battery.hidden { display:none; }
   .batt-icon { position:relative; width:30px; height:14px; border:2px solid var(--dim); border-radius:3px; box-sizing:border-box; }
@@ -25,51 +39,29 @@
   .battery.low { color:var(--red); } .battery.low .batt-icon { border-color:var(--red); } .battery.low .batt-fill { background:var(--red); }
   .battery.charging .batt-fill { background:var(--green); }
   .batt-bolt { color:var(--green); font-weight:800; }
-  #clock { color:var(--dim); font-size:15px; letter-spacing:.08em; }
-  form { width:min(640px, 90vw); display:flex; }
-  input[type=search] { flex:1; font-size:18px; padding:14px 18px; color:#fff; background:var(--panel);
-    border:2px solid var(--grey); border-right:none; border-radius:10px 0 0 10px; outline:none; }
-  input[type=search]:focus { border-color:var(--orange); }
-  button { font-size:16px; font-weight:700; padding:0 22px; border:none; border-radius:0 10px 10px 0;
-    background:var(--orange); color:#000; cursor:pointer; }
-  .tiles { display:grid; grid-template-columns:repeat(3, minmax(120px, 170px)); gap:14px; }
-  .tiles a { display:block; text-align:center; padding:18px 10px; border-radius:10px; text-decoration:none;
-    color:var(--text); background:var(--panel); border:1px solid var(--grey); font-size:15px; }
-  .tiles a:hover, .tiles a:focus { border-color:var(--orange); color:#fff; outline:none; }
-  .tiles .tile { position:relative; }
-  .tiles .tile a { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .tiles .add-tile a { border-style:dashed; color:var(--orange); font-weight:700; }
-  .tiles .remove { display:none; position:absolute; top:-12px; right:-12px; width:34px; height:34px; padding:0;
-    border-radius:50%; background:var(--orange); color:#000; font-size:18px; line-height:34px; font-weight:800;
-    border:2px solid #000; cursor:pointer; z-index:2; }
-  html.editing .tiles .removable a { cursor:default; }
-  html.editing .tiles .removable .remove { display:block; }
-  html.editing .tiles .removable a { border-color:var(--orange); }
-  html.editing .tiles .fixed a { opacity:.55; }
-  .tile-tools { display:flex; gap:10px; margin-top:-12px; }
-  .tool-btn { font-size:13px; font-weight:600; padding:6px 14px; border-radius:8px; background:var(--panel); color:var(--dim);
-    border:1px solid var(--grey); }
-  .tool-btn:hover, .tool-btn:focus { color:#fff; border-color:var(--orange); outline:none; }
-  html.editing #edit-links { background:var(--orange); color:#000; border-color:var(--orange); }
-  .add-form { width:min(520px, 90vw); background:var(--panel); border:2px solid var(--orange); border-radius:12px; padding:16px;
-    display:flex; flex-direction:column; gap:10px; }
-  .add-form[hidden] { display:none; }
-  .add-title { font-weight:700; color:#fff; }
-  .add-form input { font-size:16px; padding:10px 12px; border-radius:8px; border:1px solid var(--grey); background:#0f0f0f; color:#fff; outline:none; }
-  .add-form input:focus { border-color:var(--orange); }
-  .add-actions { display:flex; gap:10px; }
-  .add-save { border-radius:8px; padding:8px 20px; }
-  .add-error { color:#ff9a7a; font-size:13px; min-height:1em; }
-  .tip { color:var(--dim); font-size:13px; text-align:center; }
-  .tip b { color:var(--orange); font-weight:600; }
-  .byline { color:var(--dim); font-size:12px; letter-spacing:.04em; }
-  .install { display:none; width:min(640px, 90vw); padding:16px 20px; border-radius:12px;
-    background:var(--panel); border:2px solid var(--orange); align-items:center; gap:16px; }
-  html[data-live="yes"] .install { display:flex; }
-  .install p { margin:0; flex:1; font-size:14px; line-height:1.4; }
-  .install p b { color:#fff; }
-  .install button { border-radius:10px; padding:14px 20px; white-space:nowrap; }
-  @media (max-width:520px) { .tiles { grid-template-columns:repeat(2, 1fr); } }
+  .battery { justify-content:center; }
+
+  .notes { flex:1 1 380px; max-width:440px; min-width:280px; background:var(--panel); border:1px solid var(--grey); border-radius:14px;
+    display:flex; flex-direction:column; min-height:0; max-height:min(420px, 56vh); }
+  .notes-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid #2a2a2a; }
+  .notes-head h2 { margin:0; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); font-weight:700; }
+  .notes-head .count { background:var(--orange); color:#000; font-weight:800; font-size:12px; border-radius:10px; padding:1px 8px; margin-left:8px; }
+  .notes-head a { color:var(--orange); font-size:12px; text-decoration:none; cursor:pointer; }
+  .notes-list { overflow-y:auto; padding:6px 8px 8px; min-height:0; }
+  .note { display:flex; gap:12px; align-items:flex-start; padding:10px 8px; border-radius:10px; cursor:pointer; position:relative; }
+  .note:hover, .note:focus { background:#232323; outline:none; }
+  .note .ic { width:34px; height:34px; border-radius:50%; flex:none; display:grid; place-items:center; font-size:17px; background:#2a2a2a; }
+  .note.alert .ic { background:#3a1512; }
+  .note .tx { flex:1; min-width:0; }
+  .note .tt { color:#fff; font-weight:700; font-size:14px; }
+  .note .bd { color:var(--text); font-size:13px; margin-top:2px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .note .tm { color:var(--dim); font-size:11px; margin-top:3px; }
+  .note .x { border:0; background:transparent; color:#777; font-size:15px; cursor:pointer; padding:2px 6px; border-radius:6px; }
+  .note .x:hover { color:#fff; background:#333; }
+  .note.alert .tt { color:#ff8a80; }
+  .empty { color:var(--dim); font-size:14px; text-align:center; padding:28px 12px; }
+  .empty b { display:block; color:var(--text); font-size:15px; margin-bottom:4px; }
+  @media (max-width:760px) { .row { flex-direction:column; align-items:center; } .notes { width:100%; } }
 
   /* ---- right column: calendar ---- */
   aside { display:flex; flex-direction:column; gap:18px; padding:28px 22px; background:var(--panel2);
@@ -106,63 +98,33 @@
   .cal-foot { display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:12px; color:var(--dim); }
   .cal-foot a { color:var(--orange); text-decoration:none; cursor:pointer; }
 
-  .sec-alert { border-radius:10px; padding:8px 16px; font-size:14px; background:#2a0f0d; color:#ff8a80; border:2px solid var(--red); }
-  .sec-alert[hidden] { display:none; }
+
+  aside { min-height:0; overflow:hidden; padding:18px 18px; }
+  aside .card { display:flex; flex-direction:column; min-height:0; }
+  .cal-grid .day { line-height:30px; }
+  .cal-events { min-height:0; overflow:hidden; }
 
   .version { position:fixed; right:14px; bottom:10px; font-size:12px; color:var(--dim); letter-spacing:.04em; pointer-events:none; z-index:5; }
   .version[hidden] { display:none; }
   .maker { position:fixed; left:0; right:0; bottom:10px; text-align:center; font-size:13px; color:var(--dim); letter-spacing:.08em; pointer-events:none; }
   @media (min-width:900px) { .maker { right:320px; } }
-  /* ---- one screen, no scrolling ---- */
-  html, body { height:100%; overflow:hidden; }
-  body { height:100vh; min-height:0; }
-  main { min-height:0; overflow:hidden; justify-content:center; gap:16px; padding:18px 20px 38px; }
-  .logo { width:min(420px, 60vw); max-height:16vh; object-fit:contain; }
-  .bar { margin-top:-8px; }
-  .battery { margin-top:-6px; }
-  input[type=search] { font-size:17px; padding:11px 16px; }
-  .install { padding:10px 16px; }
-  .install button { padding:10px 18px; }
-  .tiles { grid-template-columns:repeat(6, minmax(88px, 118px)); gap:10px; flex:0 1 auto; min-height:0; overflow-y:auto; padding:12px 12px 4px; margin:-12px -12px 0; }
-  .tiles a { padding:9px 8px; font-size:14px; border-radius:8px; }
-  .tiles .remove { top:-10px; right:-10px; width:30px; height:30px; line-height:30px; font-size:16px; }
-  .tile-tools { margin-top:-6px; }
-  @media (max-width:700px) { .tiles { grid-template-columns:repeat(3, minmax(90px, 1fr)); } }
-  aside { min-height:0; overflow:hidden; padding:18px 18px; }
-  aside .card { display:flex; flex-direction:column; min-height:0; }
-  .cal-grid .day { line-height:30px; }
-  .cal-events { min-height:0; overflow:hidden; }
 </style>
 </head>
 <body>
 <main>
   <img data-tint class="logo" src="logo.png" alt="EAGLE-OS">
   <div class="bar"></div>
-  <div id="clock"></div>
-  <div id="battery" class="battery hidden" role="status"></div>
-  <button type="button" id="sec-alert" class="sec-alert" hidden></button>
-  <div class="install">
-    <p><b>You're running EAGLE-OS from a USB stick or card.</b><br>Install it on this PC to keep your Wi-Fi, settings and updates.</p>
-    <button type="button" data-eagle-action="install">Install EAGLE-OS</button>
+  <div class="row">
+    <section class="clock-card" aria-label="Clock">
+      <svg id="analog" viewBox="0 0 200 200" role="img" aria-label="Clock"></svg>
+      <div id="date"></div>
+      <div id="battery" class="battery hidden" role="status"></div>
+    </section>
+    <section class="notes" aria-label="Notifications">
+      <div class="notes-head"><h2>Notifications<span class="count" id="note-count" hidden></span></h2><a id="clear-all" role="button" tabindex="0" hidden>Clear all</a></div>
+      <div class="notes-list" id="notes" aria-live="polite"></div>
+    </section>
   </div>
-  <form action="https://www.google.com/search" method="get">
-    <input type="search" name="q" placeholder="Search the web" autofocus aria-label="Search the web">
-    <button type="submit">Search</button>
-  </form>
-  <nav class="tiles" id="tiles" aria-label="Links"></nav>
-  <div class="tile-tools">
-    <button type="button" id="edit-links" class="tool-btn">Edit links</button>
-  </div>
-  <form class="add-form" id="add-form" hidden>
-    <div class="add-title">Add a link</div>
-    <input type="text" id="add-name" placeholder="Name, e.g. Facebook" maxlength="24" required>
-    <input type="text" id="add-url" placeholder="Web address, e.g. facebook.com" required>
-    <div class="add-actions">
-      <button type="submit" class="add-save">Add</button>
-      <button type="button" class="tool-btn" id="add-cancel">Cancel</button>
-    </div>
-    <div class="add-error" id="add-error"></div>
-  </form>
 </main>
 
 <aside>
@@ -177,7 +139,7 @@
     </div>
     <div class="cal-grid" id="cal-grid"></div>
     <div class="cal-events" id="cal-events"></div>
-    <div class="cal-foot"><a href="#" data-eagle-action="datetime">Set date and time</a><a href="calendars.html">Calendars</a><a id="cal-today" role="button" tabindex="0">Today</a></div>
+    <div class="cal-foot"><a href="#" data-eagle-action="datetime">Set date and time</a><a href="calendars.html" target="_blank">Calendars</a><a id="cal-today" role="button" tabindex="0">Today</a></div>
   </section>
 </aside>
 <div class="maker">by Stumpf Technology</div>

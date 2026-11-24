@@ -1,14 +1,15 @@
-// EAGLE start page (inside the EAGLE-OS add-on, so it can reach the EAGLE helper):
-// Install banner when running from the USB stick / card, EAGLE buttons, clock,
-// month calendar and antivirus status.
+// EAGLE start page (the pinned first tab): analog clock, battery, notifications and the
+// month calendar. No buttons: the sites open as tabs next to this one (E menu > Link tabs).
 
 function eagle(action) {
   return browser.runtime.sendNativeMessage("eagle", { action }).catch(() => null);
 }
+let eagleStatus = {};
 
-// ---------- EAGLE status + buttons ----------
+// ---------- EAGLE status (version, running from the stick) ----------
 (async () => {
   const status = (await eagle("status")) || {};
+  eagleStatus = status;
   document.documentElement.dataset.eagle = "ready";
   if (status.live) document.documentElement.dataset.live = "yes";
   if (status.version) {
@@ -18,10 +19,10 @@ function eagle(action) {
     if (status.built) v.title = "Built " + status.built;
     v.hidden = false;
   }
+  renderNotes();
   document.addEventListener("click", (ev) => {
     const el = ev.target.closest("[data-eagle-action]");
     if (!el) return;
-    if (document.documentElement.classList.contains("editing") && el.closest("#tiles")) return;
     ev.preventDefault();
     eagle(el.dataset.eagleAction);
   });
@@ -60,15 +61,48 @@ browser.runtime.onMessage.addListener((msg) => {
   return undefined;
 });
 
-// ---------- Clock ----------
-function tick() {
-  const d = new Date();
-  document.getElementById("clock").textContent =
-    d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) + "  ·  " +
-    d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+// ---------- Analog clock + date ----------
+const SVGNS = "http://www.w3.org/2000/svg";
+function svg(tag, attrs, parent) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  parent.appendChild(el);
+  return el;
 }
-tick();
-setInterval(tick, 15000);
+const face = document.getElementById("analog");
+svg("circle", { class: "face", cx: 100, cy: 100, r: 96 }, face);
+for (let i = 0; i < 60; i++) {
+  const big = i % 5 === 0, a = (i * 6) * Math.PI / 180, r1 = big ? 80 : 86, r2 = 91;
+  svg("line", { class: "tick" + (big ? " big" : ""), x1: 100 + r1 * Math.sin(a), y1: 100 - r1 * Math.cos(a), x2: 100 + r2 * Math.sin(a), y2: 100 - r2 * Math.cos(a) }, face);
+}
+for (const n of [12, 3, 6, 9]) {
+  const a = n * 30 * Math.PI / 180;
+  const t = svg("text", { class: "num", x: 100 + 66 * Math.sin(a), y: 100 - 66 * Math.cos(a) }, face);
+  t.textContent = n;
+}
+const hHand = svg("line", { class: "hour", x1: 100, y1: 108, x2: 100, y2: 52 }, face);
+const mHand = svg("line", { class: "min", x1: 100, y1: 112, x2: 100, y2: 30 }, face);
+const sHand = svg("line", { class: "sec", x1: 100, y1: 118, x2: 100, y2: 22 }, face);
+svg("circle", { class: "hub", cx: 100, cy: 100, r: 5 }, face);
+function clockTick() {
+  const d = new Date();
+  const s = d.getSeconds(), m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60;
+  hHand.setAttribute("transform", `rotate(${h * 30} 100 100)`);
+  mHand.setAttribute("transform", `rotate(${m * 6} 100 100)`);
+  sHand.setAttribute("transform", `rotate(${s * 6} 100 100)`);
+  const date = document.getElementById("date");
+  const day = d.toLocaleDateString(undefined, { weekday: "long" });
+  const rest = d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (date.dataset.v !== day + rest + time) {
+    date.dataset.v = day + rest + time;
+    date.textContent = "";
+    const b = document.createElement("b"); b.textContent = time;
+    date.append(b, document.createTextNode(day + ", " + rest));
+  }
+}
+clockTick();
+setInterval(clockTick, 1000);
 
 // ---------- Month calendar ----------
 const cal = { year: 0, month: 0, selected: null };
@@ -101,7 +135,7 @@ function renderEvents() {
   box.textContent = "";
   if (!calCals.length) {
     const a = document.createElement("a");
-    a.className = "cal-connect"; a.href = "calendars.html";
+    a.className = "cal-connect"; a.href = "calendars.html"; a.target = "_blank";
     a.textContent = "+ Show your Google, Outlook or iCloud calendar here";
     box.appendChild(a);
     return;
@@ -137,6 +171,7 @@ async function loadCalendarData() {
     calEvents = (s.calData && s.calData.events || []).filter((e) => calCals.some((c) => c.id === e.cal));
   } catch (e) { calCals = []; calEvents = []; }
   renderCalendar();
+  renderNotes();
 }
 browser.storage.onChanged.addListener((ch) => { if (ch.calendars || ch.calData) loadCalendarData(); });
 
@@ -205,130 +240,96 @@ loadCalendarData();
 // roll over at midnight
 setInterval(() => { const t = new Date(); if (t.getHours() === 0 && t.getMinutes() === 0) goToday(); }, 60000);
 
-// ---------- Antivirus: only shown here if something was found (details in the E menu > Security) ----------
-async function renderSecurity() {
-  const s = await eagle("security_status");
-  const el = document.getElementById("sec-alert");
-  const n = s && s.ok ? s.threats_found || 0 : 0;
-  el.hidden = n <= 0;
-  if (n > 0) el.textContent = `⚠ ${n} threat${n === 1 ? "" : "s"} found and quarantined · Open Security`;
+
+// ---------- Notifications: alerts, messages, email, calendar ----------
+// From the EAGLE add-on (storage "notices": email, unread messages in open tabs, antivirus, updates,
+// battery) plus a few worked out here (install from the stick, calendar events coming up).
+const ICONS = { install: "⬇", calendar: "📅", email: "✉", message: "💬", security: "🛡", updates: "⟳", battery: "🔋", info: "ℹ" };
+let notices = [], dismissed = {};
+function ago(t) {
+  const m = Math.round((Date.now() - t) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return m + " min ago";
+  const h = Math.round(m / 60);
+  if (h < 24) return h + " h ago";
+  return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
-document.getElementById("sec-alert").addEventListener("click", () => eagle("security"));
-renderSecurity();
-setInterval(renderSecurity, 5 * 60 * 1000);
-
-// ---------- Link buttons: six fixed + your own (add / remove) ----------
-const FIXED_LINKS = [
-  { title: "Google", url: "https://www.google.com" },
-  { title: "Gmail", url: "https://mail.google.com" },
-  { title: "YouTube", url: "https://www.youtube.com" },
-  { title: "Maps", url: "https://maps.google.com" },
-  { title: "News", url: "https://news.google.com" },
-  { title: "Weather", url: "https://weather.com" },
-];
-const STARTER_LINKS = [
-  { title: "Spotify", url: "https://open.spotify.com/" },
-  { title: "Wi-Fi", action: "wifi" },
-  { title: "Facebook", url: "https://www.facebook.com/" },
-];
-const MAX_LINKS = 24;
-let myLinks = [];
-
-async function loadLinks() {
-  try {
-    const s = await browser.storage.local.get({ links: null, linksVersion: 1 });
-    myLinks = Array.isArray(s.links) ? s.links : STARTER_LINKS.slice();
-    if (Array.isArray(s.links) && s.linksVersion < 2) {
-      // v2: Camera test and EAGLE menu moved to the E menu; Facebook added
-      myLinks = myLinks.filter((l) => l.url !== "camera.html" && l.action !== "menu");
-      if (!myLinks.some((l) => /facebook\.com/i.test(l.url || ""))) myLinks.push({ title: "Facebook", url: "https://www.facebook.com/" });
-      await browser.storage.local.set({ links: myLinks, linksVersion: 2 });
+function computedNotes() {
+  const out = [];
+  if (eagleStatus.live) {
+    out.push({ id: "install", kind: "install", title: "Install EAGLE-OS on this PC",
+      text: "You're running from a USB stick or card. Install to keep your Wi-Fi, settings and updates.",
+      action: { type: "screen", value: "install" }, time: 0 });
+  }
+  const now = Date.now();
+  for (const e of calEvents) {
+    if (e.allDay) continue;
+    if (e.start > now && e.start - now <= 60 * 60000) {
+      const mins = Math.round((e.start - now) / 60000);
+      out.push({ id: "cal:" + e.start + ":" + e.title, kind: "calendar", title: e.title,
+        text: new Date(e.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) + " · in " + mins + " min" + (e.location ? " · " + e.location : ""),
+        action: { type: "none" }, time: e.start, soon: true });
     }
-  } catch (e) { myLinks = STARTER_LINKS.slice(); }
-}
-async function saveLinks() { try { await browser.storage.local.set({ links: myLinks }); } catch (e) { /* ignore */ } }
-
-function tile(link, cls, index) {
-  const wrap = document.createElement("div");
-  wrap.className = "tile " + cls;
-  const a = document.createElement("a");
-  a.textContent = link.title;
-  a.title = link.url || link.title;
-  if (link.action) { a.href = "#"; a.dataset.eagleAction = link.action; }
-  else a.href = link.url;
-  wrap.appendChild(a);
-  if (cls === "removable") {
-    const x = document.createElement("button");
-    x.type = "button"; x.className = "remove"; x.textContent = "✕";
-    x.setAttribute("aria-label", "Remove " + link.title);
-    x.addEventListener("click", async (ev) => {
-      ev.preventDefault(); ev.stopPropagation();
-      myLinks.splice(index, 1);
-      await saveLinks();
-      renderTiles();
-    });
-    wrap.appendChild(x);
   }
-  return wrap;
+  return out;
 }
-
-function renderTiles() {
-  const box = document.getElementById("tiles");
+function renderNotes() {
+  const list = computedNotes().concat(notices).filter((n) => !dismissed[n.id]);
+  const rank = (n) => (n.id === "install" ? 2 : n.soon ? 1 : 0);
+  list.sort((a, b) => rank(b) - rank(a) || (b.time || 0) - (a.time || 0));
+  const box = document.getElementById("notes");
   box.textContent = "";
-  FIXED_LINKS.forEach((l) => box.appendChild(tile(l, "fixed")));
-  myLinks.forEach((l, i) => box.appendChild(tile(l, "removable", i)));
-  if (myLinks.length < MAX_LINKS) {
-    const add = tile({ title: "+ Add link" }, "add-tile");
-    add.querySelector("a").href = "#";
-    add.querySelector("a").addEventListener("click", (ev) => { ev.preventDefault(); openAddForm(); });
-    box.appendChild(add);
+  const count = document.getElementById("note-count");
+  count.hidden = !list.length; count.textContent = list.length;
+  document.getElementById("clear-all").hidden = list.length < 2;
+  if (!list.length) {
+    const e = document.createElement("div"); e.className = "empty";
+    const b = document.createElement("b"); b.textContent = "You're all caught up";
+    e.append(b, document.createTextNode("New email, messages and alerts show up here."));
+    box.appendChild(e);
+    return;
+  }
+  for (const n of list.slice(0, 20)) {
+    const row = document.createElement("div");
+    row.className = "note" + (["security", "battery"].includes(n.kind) ? " alert" : "");
+    row.tabIndex = 0;
+    const ic = document.createElement("span"); ic.className = "ic"; ic.textContent = ICONS[n.kind] || ICONS.info;
+    const tx = document.createElement("div"); tx.className = "tx";
+    const tt = document.createElement("div"); tt.className = "tt"; tt.textContent = n.title;
+    tx.appendChild(tt);
+    if (n.text) { const bd = document.createElement("div"); bd.className = "bd"; bd.textContent = n.text; tx.appendChild(bd); }
+    if (n.time && !n.soon) { const tm = document.createElement("div"); tm.className = "tm"; tm.textContent = ago(n.time); tx.appendChild(tm); }
+    const x = document.createElement("button"); x.className = "x"; x.type = "button"; x.textContent = "✕";
+    x.setAttribute("aria-label", "Dismiss");
+    x.addEventListener("click", (ev) => { ev.stopPropagation(); dismiss([n.id]); });
+    row.append(ic, tx, x);
+    const open = () => {
+      const a = n.action || {};
+      if (a.type === "screen") eagle(a.value);
+      else if (a.type && a.type !== "none") browser.runtime.sendMessage({ type: "open-notice", action: a }).catch(() => {});
+    };
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (ev) => { if (ev.key === "Enter") open(); });
+    box.appendChild(row);
   }
 }
-
-function normaliseUrl(text) {
-  let t = text.trim();
-  if (!t) return null;
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(t)) t = "https://" + t;
+async function dismiss(ids) {
+  for (const id of ids) dismissed[id] = Date.now();
+  // forget dismissals older than a week
+  for (const id in dismissed) if (Date.now() - dismissed[id] > 7 * 86400000) delete dismissed[id];
+  renderNotes();
+  try { await browser.storage.local.set({ noticeDismissed: dismissed }); } catch (e) { /* ignore */ }
+}
+document.getElementById("clear-all").addEventListener("click", () => {
+  dismiss(computedNotes().concat(notices).map((n) => n.id));
+});
+async function loadNotes() {
   try {
-    const u = new URL(t);
-    if (!["http:", "https:"].includes(u.protocol) || !u.hostname.includes(".")) return null;
-    return u.href;
-  } catch (e) { return null; }
+    const s = await browser.storage.local.get({ notices: [], noticeDismissed: {} });
+    notices = s.notices || []; dismissed = s.noticeDismissed || {};
+  } catch (e) { /* ignore */ }
+  renderNotes();
 }
-
-function openAddForm() {
-  const f = document.getElementById("add-form");
-  f.hidden = false;
-  document.getElementById("add-error").textContent = "";
-  document.getElementById("add-name").value = "";
-  document.getElementById("add-url").value = "";
-  document.getElementById("add-name").focus();
-}
-
-document.getElementById("add-cancel").addEventListener("click", () => { document.getElementById("add-form").hidden = true; });
-document.getElementById("add-form").addEventListener("submit", async (ev) => {
-  ev.preventDefault();
-  const name = document.getElementById("add-name").value.trim();
-  const url = normaliseUrl(document.getElementById("add-url").value);
-  const err = document.getElementById("add-error");
-  if (!name) { err.textContent = "Give the link a name."; return; }
-  if (!url) { err.textContent = "That web address doesn't look right. Try something like facebook.com"; return; }
-  myLinks.push({ title: name.slice(0, 24), url });
-  await saveLinks();
-  document.getElementById("add-form").hidden = true;
-  renderTiles();
-});
-document.getElementById("edit-links").addEventListener("click", () => {
-  const on = document.documentElement.classList.toggle("editing");
-  document.getElementById("edit-links").textContent = on ? "Done" : "Edit links";
-});
-
-// While editing, clicking a button does nothing (only the ✕ removes it)
-document.getElementById("tiles").addEventListener("click", (ev) => {
-  if (!document.documentElement.classList.contains("editing")) return;
-  if (ev.target.closest(".remove") || ev.target.closest(".add-tile")) return;
-  ev.preventDefault();
-  ev.stopPropagation();
-}, true);
-
-loadLinks().then(renderTiles);
+browser.storage.onChanged.addListener((ch) => { if (ch.notices || ch.noticeDismissed) loadNotes(); });
+loadNotes();
+setInterval(renderNotes, 60000);

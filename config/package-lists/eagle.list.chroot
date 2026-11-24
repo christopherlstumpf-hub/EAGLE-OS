@@ -116,3 +116,6 @@ libcurl3t64-gnutls
 libvulkan1
 wget
 xdg-utils
+
+# Media keys (play/pause, next, previous) for the browser
+playerctl

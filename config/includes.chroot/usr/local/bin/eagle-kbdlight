@@ -1,0 +1,13 @@
+#!/bin/sh
+# EAGLE-OS keyboard backlight keys (MacBook F5/F6): eagle-kbdlight up|down
+LED=""
+for d in /sys/class/leds/*kbd_backlight*; do [ -w "$d/brightness" ] && { LED=$d; break; }; done
+[ -n "$LED" ] || exit 0
+max=$(cat "$LED/max_brightness"); cur=$(cat "$LED/brightness")
+step=$((max / 8)); [ "$step" -ge 1 ] || step=1
+case "$1" in
+  up)   new=$((cur + step)); [ "$new" -le "$max" ] || new=$max ;;
+  down) new=$((cur - step)); [ "$new" -ge 0 ] || new=0 ;;
+  *)    exit 2 ;;
+esac
+echo "$new" > "$LED/brightness"
