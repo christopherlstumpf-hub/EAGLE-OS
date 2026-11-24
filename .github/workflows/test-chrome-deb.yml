@@ -4,9 +4,6 @@
 name: Test Chrome download
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [".github/workflows/test-chrome-deb.yml"]
 permissions:
   contents: write
 jobs:
