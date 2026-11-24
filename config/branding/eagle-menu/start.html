@@ -111,10 +111,12 @@
 
   .version { position:fixed; right:14px; bottom:10px; font-size:12px; color:var(--dim); letter-spacing:.04em; pointer-events:none; z-index:5; }
   .version[hidden] { display:none; }
+  .maker { position:fixed; left:0; right:0; bottom:10px; text-align:center; font-size:13px; color:var(--dim); letter-spacing:.08em; pointer-events:none; }
+  @media (min-width:900px) { .maker { right:320px; } }
   /* ---- one screen, no scrolling ---- */
   html, body { height:100%; overflow:hidden; }
   body { height:100vh; min-height:0; }
-  main { min-height:0; overflow:hidden; justify-content:center; gap:16px; padding:18px 20px; }
+  main { min-height:0; overflow:hidden; justify-content:center; gap:16px; padding:18px 20px 38px; }
   .logo { width:min(420px, 60vw); max-height:16vh; object-fit:contain; }
   .bar { margin-top:-8px; }
   .battery { margin-top:-6px; }
@@ -178,6 +180,7 @@
     <div class="cal-foot"><a href="#" data-eagle-action="datetime">Set date and time</a><a href="calendars.html">Calendars</a><a id="cal-today" role="button" tabindex="0">Today</a></div>
   </section>
 </aside>
+<div class="maker">by Stumpf Technology</div>
 <div id="version" class="version" hidden></div>
 <script src="theme.js"></script>
 <script src="activity.js"></script>

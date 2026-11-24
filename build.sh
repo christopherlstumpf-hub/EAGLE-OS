@@ -40,7 +40,12 @@ printf 'VERSION="%s"\nDATE="%s"\n' "${EAGLE_VERSION:-dev}" "$(date -u +%Y-%m-%d)
 # EAGLE-OS add-on (start page, camera test, toolbar menu), with this edition's logo
 ADDON="$WORK/build-addon"
 rm -rf "$ADDON"; cp -a config/branding/eagle-menu "$ADDON"
-cp config/includes.chroot/usr/share/eagle/logo.png "$ADDON/logo.png"
+# start page: logo without the byline ("by Stumpf Technology" sits at the bottom of the page instead)
+if [ "$VARIANT" = standard ] && [ -f config/includes.chroot/usr/share/eagle/logo-plain.png ]; then
+  cp config/includes.chroot/usr/share/eagle/logo-plain.png "$ADDON/logo.png"
+else
+  cp config/includes.chroot/usr/share/eagle/logo.png "$ADDON/logo.png"
+fi
 mkdir -p config/includes.chroot/usr/share/eagle
 (cd "$ADDON" && rm -f ../eagle-menu.xpi && zip -q -r -X ../eagle-menu.xpi .)
 mv -f "$WORK/eagle-menu.xpi" config/includes.chroot/usr/share/eagle/eagle-menu.xpi

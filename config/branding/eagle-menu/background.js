@@ -260,3 +260,34 @@ async function applyAccent(accent) {
 }
 browser.storage.local.get({ accent: EAGLE_DEFAULT_ACCENT }).then((s) => applyAccent(s.accent));
 browser.storage.onChanged.addListener((ch) => { if (ch.accent) applyAccent(ch.accent.newValue); });
+
+// ---------- Startup guard: Firefox always opens on the EAGLE start page ----------
+// On some PCs Firefox can show a welcome/privacy page, a blank tab or an error before the
+// EAGLE add-on is ready. For the first 30 seconds, swap any such tab for the start page.
+const START_URL = browser.runtime.getURL("start.html");
+const NOT_EAGLE = /^(about:(blank|home|newtab|welcome|privatebrowsing|sessionrestore|tabcrashed|neterror|certerror)|moz-extension:\/\/[^/]+\/?$)|^https?:\/\/(www\.)?mozilla\.org\/.*(privacy|firstrun|whatsnew|welcome)|^https?:\/\/(www\.)?firefox\.com\//i;
+const FIRST_RUN_PAGE = /^about:(welcome|sessionrestore)|^https?:\/\/(www\.)?mozilla\.org\/|^https?:\/\/(www\.)?firefox\.com\//i;
+const guardUntil = Date.now() + 30000;
+let guardRuns = 0;
+async function startupGuard() {
+  if (Date.now() > guardUntil) return;
+  let tabs = [];
+  try { tabs = await browser.tabs.query({}); } catch (e) { return; }
+  if (!tabs.length) return;
+  // The start page may have tried to load before the add-on was ready: load it again once.
+  if (guardRuns++ === 0) {
+    for (const t of tabs) if ((t.url || "").startsWith(START_URL)) browser.tabs.reload(t.id).catch(() => {});
+  }
+  const hasStart = tabs.some((t) => (t.url || "").startsWith(START_URL));
+  if (!hasStart) {
+    const early = Date.now() < guardUntil - 27000;   // only in the first 3 seconds: any lone page
+    const first = tabs.find((t) => NOT_EAGLE.test(t.url || "about:blank")) || (early && tabs.length === 1 ? tabs[0] : null);
+    if (first) await browser.tabs.update(first.id, { url: START_URL, active: true }).catch(() => {});
+  }
+  // Close Mozilla welcome / privacy / what's-new tabs
+  const extra = tabs.filter((t) => FIRST_RUN_PAGE.test(t.url || ""));
+  if (extra.length && extra.length < tabs.length) await browser.tabs.remove(extra.map((t) => t.id)).catch(() => {});
+}
+for (const ms of [500, 2000, 5000, 10000, 20000]) setTimeout(startupGuard, ms);
+browser.tabs.onCreated.addListener(() => { if (Date.now() < guardUntil) setTimeout(startupGuard, 800); });
+browser.tabs.onUpdated.addListener((id, info) => { if (info.url && Date.now() < guardUntil) setTimeout(startupGuard, 300); });

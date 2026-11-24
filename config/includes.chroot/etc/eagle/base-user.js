@@ -23,3 +23,13 @@ user_pref("media.eme.enabled", true);
 user_pref("media.gmp-widevinecdm.enabled", true);
 user_pref("media.gmp-widevinecdm.visible", true);
 user_pref("media.gmp-manager.updateEnabled", true);
+// Never open Mozilla's privacy notice / welcome / what's-new tabs at start
+user_pref("datareporting.policy.firstRunURL", "");
+user_pref("startup.homepage_welcome_url", "");
+user_pref("startup.homepage_welcome_url.additional", "");
+user_pref("startup.homepage_override_url", "");
+user_pref("browser.startup.page", 1);
+user_pref("browser.startup.firstrunSkipsHomepage", false);
+user_pref("browser.sessionstore.resume_from_crash", false);
+user_pref("browser.messaging-system.whatsNewPanel.enabled", false);
+user_pref("browser.uitour.enabled", false);
