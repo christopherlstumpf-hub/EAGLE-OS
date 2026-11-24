@@ -29,7 +29,7 @@ if [ "$BROWSER" = chrome ] && command -v google-chrome-stable >/dev/null && [ -r
   # no "Chrome didn't shut down correctly" bubble: EAGLE closes Chrome when it opens its screens
   sed -i 's/"exit_type":"[A-Za-z]*"/"exit_type":"Normal"/; s/"exited_cleanly":false/"exited_cleanly":true/' "$DATA/Default/Preferences" 2>/dev/null
   args=(--user-data-dir="$DATA" --no-first-run --no-default-browser-check --password-store=basic
-        --start-maximized --disable-session-crashed-bubble)
+        --start-maximized --disable-session-crashed-bubble --force-dark-mode)
   if [ -n "${WAYLAND_DISPLAY:-}" ]; then args+=(--ozone-platform=wayland --enable-features=UseOzonePlatform); else args+=(--ozone-platform=x11); fi
   mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
   [ "${mem_kb:-0}" -le 4194304 ] && args+=(--renderer-process-limit=4)

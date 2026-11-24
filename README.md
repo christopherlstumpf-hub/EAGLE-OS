@@ -112,7 +112,7 @@ Orange E button → **Colour scheme**. EAGLE Orange is the original and the defa
 
 ## Google Chrome (standard edition)
 
-Orange E menu → **Web browser** → **Install Google Chrome**. EAGLE downloads Chrome from Google (about 110 MB; Google's terms don't allow it on the stick itself), installs it, and asks whether to open EAGLE in Chrome. Chrome then updates itself with the daily updates. The EAGLE start page, E button, calendar, battery, screensaver, colour scheme and settings screens all work in Chrome too, and your links, calendars and colours are shared between Firefox and Chrome. Switch back to Firefox or remove Chrome on the same screen. EAGLE-OS Lite stays on Firefox to save memory.
+Orange E menu → **Web browser** → **Install Google Chrome**. EAGLE downloads Chrome from Google (about 150 MB; Google's terms don't allow it on the stick itself), installs it, and asks whether to open EAGLE in Chrome. Chrome then updates itself with the daily updates. The EAGLE start page, E button, calendar, battery, screensaver, colour scheme and settings screens all work in Chrome too, and your links, calendars and colours are shared between Firefox and Chrome. Switch back to Firefox or remove Chrome on the same screen. EAGLE-OS Lite stays on Firefox to save memory.
 
 ## Printers
 

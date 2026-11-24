@@ -340,8 +340,8 @@ browser_menu() {
     chrome_ver=$(sudo -n /usr/local/sbin/eagle-chrome status 2>/dev/null)
     msg="EAGLE-OS opens: $([ "$cur" = chrome ] && echo "Google Chrome" || echo "Firefox")\n"
     if [ "$chrome_ver" = not-installed ] || [ -z "$chrome_ver" ]; then
-      msg+="\nGoogle Chrome isn't installed. It's downloaded from Google (about 110 MB) and then updates itself with the daily updates.\nYour EAGLE start page, links, calendars and colours come along."
-      is_live && msg+="\n\nRunning from the USB stick: Chrome is forgotten at restart. Install EAGLE-OS to keep it."
+      msg+="\nGoogle Chrome isn't installed. It's downloaded from Google (about 150 MB) and then updates itself with the daily updates.\nYour EAGLE start page, links, calendars and colours come along."
+      is_live && msg+="\n\nRunning from the USB stick: Chrome is forgotten at restart. After installing EAGLE-OS, install Chrome again here to keep it."
       items=(chrome-install "Install Google Chrome" firefox "Keep using Firefox" back "Back")
     else
       msg+="\nGoogle Chrome $chrome_ver is installed."
