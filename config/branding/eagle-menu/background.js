@@ -405,7 +405,10 @@ browser.tabs.onRemoved.addListener((tabId, info) => {
   for (const u of Object.keys(linkTabs)) if (linkTabs[u] === tabId) { delete linkTabs[u]; saveTabs(); }
   if (tabId !== startTabId || info.isWindowClosing) return;
   startTabId = null;
-  ensureTabs(false, true);     // closed (Ctrl+W): bring it straight back
+  // closed (Ctrl+W): bring it straight back, in front (after the browser has picked its next tab)
+  ensureTabs(false, true).then(() => setTimeout(() => {
+    if (startTabId != null) browser.tabs.update(startTabId, { active: true }).catch(() => {});
+  }, 400));
 });
 browser.tabs.onMoved.addListener((tabId, info) => {
   if (tabId === startTabId && info.toIndex !== 0) browser.tabs.move(tabId, { index: 0 }).catch(() => {});
