@@ -1,6 +1,7 @@
 // EAGLE-OS screen timeout and screensaver settings (saved in the browser profile).
 const DEFAULTS = { timeoutMin: 0, saverMin: 10, saverTheme: "season" };
 const MINUTES = [[0, "Off"], [5, "5 minutes"], [10, "10 minutes"], [30, "30 minutes"], [60, "60 minutes"]];
+const SAVER_MINUTES = [[0, "Off"], [1, "1 minute"], [5, "5 minutes"], [10, "10 minutes"], [30, "30 minutes"], [60, "60 minutes"]];
 const THEMES = [["beach", "Beach"], ["mountains", "Mountains"], ["winter", "Winter"],
                 ["summer", "Summer"], ["fall", "Fall"], ["spring", "Spring"]];
 
@@ -21,9 +22,9 @@ async function save(patch) {
   savedTimer = setTimeout(() => s.classList.remove("show"), 1500);
 }
 
-function radioRow(containerId, name, value, key) {
+function radioRow(containerId, name, value, key, options = MINUTES) {
   const box = document.getElementById(containerId);
-  for (const [v, label] of MINUTES) {
+  for (const [v, label] of options) {
     const l = document.createElement("label");
     const i = document.createElement("input");
     i.type = "radio"; i.name = name; i.value = v; i.checked = v === value;
@@ -49,7 +50,7 @@ function picCard(value, label, checked, thumbHTML) {
 (async () => {
   const s = { ...DEFAULTS, ...(await browser.storage.local.get(DEFAULTS)) };
   radioRow("timeout", "timeout", s.timeoutMin, "timeoutMin");
-  radioRow("saver", "saver", s.saverMin, "saverMin");
+  radioRow("saver", "saver", s.saverMin, "saverMin", SAVER_MINUTES);
 
   const pics = document.getElementById("pics");
   const season = currentSeason();

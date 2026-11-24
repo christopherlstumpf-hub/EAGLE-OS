@@ -107,7 +107,7 @@ async function tick() {
     await openSaver(false);
   }
 }
-setInterval(tick, 15000);
+setInterval(tick, 5000);
 
 // ---------- Calendar links (Google, Outlook, iCloud, Yahoo ... iCal links) ----------
 // The links stay on this PC (storage.local "calendars"). Events from 6 weeks back to 13 months
