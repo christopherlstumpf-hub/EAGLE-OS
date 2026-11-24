@@ -3,6 +3,13 @@ browser.runtime.sendNativeMessage("eagle", { action: "status" }).then((s) => {
   if (s && s.live) document.getElementById("install").classList.remove("hidden");
 }).catch(() => {});
 
+browser.runtime.sendNativeMessage("eagle", { action: "status" }).then((st) => {
+  if (!st || !st.version) return;
+  const v = document.createElement("small");
+  v.textContent = (st.variant === "lite" ? "Lite · " : "") + st.version.replace(/^build\s*/i, "Build ");
+  document.querySelector("header").appendChild(v);
+}).catch(() => {});
+
 browser.runtime.sendMessage({ type: "get-battery" }).then((b) => {
   if (!b || !b.present || b.percent == null) return;
   const el = document.getElementById("batt");

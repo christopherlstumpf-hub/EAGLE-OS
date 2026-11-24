@@ -109,6 +109,8 @@
   .sec-alert { border-radius:10px; padding:8px 16px; font-size:14px; background:#2a0f0d; color:#ff8a80; border:2px solid var(--red); }
   .sec-alert[hidden] { display:none; }
 
+  .version { position:fixed; right:14px; bottom:10px; font-size:12px; color:var(--dim); letter-spacing:.04em; pointer-events:none; z-index:5; }
+  .version[hidden] { display:none; }
   /* ---- one screen, no scrolling ---- */
   html, body { height:100%; overflow:hidden; }
   body { height:100vh; min-height:0; }
@@ -176,6 +178,7 @@
     <div class="cal-foot"><a href="#" data-eagle-action="datetime">Set date and time</a><a href="calendars.html">Calendars</a><a id="cal-today" role="button" tabindex="0">Today</a></div>
   </section>
 </aside>
+<div id="version" class="version" hidden></div>
 <script src="theme.js"></script>
 <script src="activity.js"></script>
 <script src="start-page.js"></script>

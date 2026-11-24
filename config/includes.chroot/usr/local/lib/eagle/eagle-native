@@ -99,7 +99,14 @@ def main():
             variant = open("/etc/eagle/variant").read().strip()
         except OSError:
             variant = "standard"
-        send({"ok": True, "live": live, "variant": variant})
+        version, built = "dev", ""
+        for line in (read("/etc/eagle/version") or "").splitlines():
+            key, _, val = line.partition("=")
+            if key == "VERSION":
+                version = val.strip('"')
+            elif key == "DATE":
+                built = val.strip('"')
+        send({"ok": True, "live": live, "variant": variant, "version": version, "built": built})
     elif action == "camera_status":
         facetime = False
         for d in os.listdir("/sys/bus/pci/devices"):

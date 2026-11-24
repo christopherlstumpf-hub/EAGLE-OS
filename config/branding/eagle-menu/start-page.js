@@ -11,6 +11,13 @@ function eagle(action) {
   const status = (await eagle("status")) || {};
   document.documentElement.dataset.eagle = "ready";
   if (status.live) document.documentElement.dataset.live = "yes";
+  if (status.version) {
+    const v = document.getElementById("version");
+    const ver = status.version.replace(/^build\s*/i, "Build ");
+    v.textContent = "EAGLE-OS" + (status.variant === "lite" ? " Lite" : "") + " · " + ver;
+    if (status.built) v.title = "Built " + status.built;
+    v.hidden = false;
+  }
   document.addEventListener("click", (ev) => {
     const el = ev.target.closest("[data-eagle-action]");
     if (!el) return;

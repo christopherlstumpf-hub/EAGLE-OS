@@ -33,6 +33,10 @@ fi
 
 cd "$WORK"
 
+# Version shown on the start page (lower right) and in the EAGLE menu: "build 38" from GitHub, "dev" otherwise
+mkdir -p config/includes.chroot/etc/eagle
+printf 'VERSION="%s"\nDATE="%s"\n' "${EAGLE_VERSION:-dev}" "$(date -u +%Y-%m-%d)" > config/includes.chroot/etc/eagle/version
+
 # EAGLE-OS add-on (start page, camera test, toolbar menu), with this edition's logo
 ADDON="$WORK/build-addon"
 rm -rf "$ADDON"; cp -a config/branding/eagle-menu "$ADDON"
@@ -63,6 +67,7 @@ mv -f live-image-amd64.hybrid.iso "$ROOT/out/$NAME.iso"
   echo "ublock in Firefox: $(find chroot/usr/share/mozilla/extensions chroot/usr/lib/firefox-esr -maxdepth 3 -iname '*uBlock0*' 2>/dev/null | head -1)"
   echo "installer packages: $(find chroot/usr/share/eagle/debs -name '*.deb' -printf '%f ' 2>/dev/null)"
   echo "toolbar add-on: $(ls chroot/usr/share/eagle/eagle-menu.xpi 2>/dev/null || echo missing)"
+  echo "version: ${EAGLE_VERSION:-dev}"
   echo; echo "== Mac drivers =="; cat chroot/usr/share/eagle/mac-drivers.txt 2>/dev/null || echo "missing"
   echo "unsquashfs: $(ls chroot/usr/bin/unsquashfs 2>/dev/null || echo missing)"
   echo; echo "== Boot menu labels =="
