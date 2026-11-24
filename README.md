@@ -104,7 +104,11 @@ If you're running straight from the stick or card (Run EAGLE-OS), updates are lo
 ## Start page
 Everything fits on one screen with no scrolling: search, compact link buttons, an **Install EAGLE-OS** banner when running from the stick, and the month calendar on the right. Security and Screen timeout / screensaver live in the orange **E** menu; the start page only shows a red notice if the antivirus has quarantined something.
 
-**Link buttons:** Google, Gmail, YouTube, Maps, News and Weather are always there. Use **+ Add link** for your own sites (a name and a web address like `facebook.com`). Turn on **Edit links** to show a ✕ that removes them. Spotify, Camera test, Wi-Fi and EAGLE menu start as removable links. Your links are kept on installed PCs; running from the stick they reset at restart. On the right is a **month calendar** (today in orange, with previous/next month and a **Set date and time** link). The default time zone is US Eastern; change it under **Date and time**.
+**Link buttons:** Google, Gmail, YouTube, Maps, News and Weather are always there. Use **+ Add link** for your own sites (a name and a web address like `facebook.com`). Turn on **Edit links** to show a ✕ that removes them. Spotify, Wi-Fi and Facebook start as removable links (Camera test and the EAGLE menu are in the orange E menu). Your links are kept on installed PCs; running from the stick they reset at restart. On the right is a **month calendar** (today in orange, with previous/next month and a **Set date and time** link). The default time zone is US Eastern; change it under **Date and time**.
+
+## Colour scheme
+
+Orange E button → **Colour scheme**. EAGLE Orange is the original and the default; the other eight colours come from the Mountains screensaver pictures (Sunset Gold, Sunset Ember, Dawn Glow, Alpenglow, Alpine Sky, Mountain Lake, Twilight Peaks, Pine Forest). The choice recolours the Firefox toolbar highlights, the E button, the logo's accents, the start page and the EAGLE pages; black and grey stay. The boot screens and setup screens keep the original orange.
 
 ## Battery
 

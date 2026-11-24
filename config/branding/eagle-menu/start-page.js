@@ -74,7 +74,7 @@ function eventsOn(d) {
   const b = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
   return calEvents.filter((e) => e.start < b && (e.end > a || (e.end === e.start && e.start >= a)));
 }
-function calColor(e) { const c = calCals.find((x) => x.id === e.cal); return c ? c.color : "#ff7a00"; }
+function calColor(e) { const c = calCals.find((x) => x.id === e.cal); return c ? c.color : "var(--orange)"; }
 function evTime(e, d) {
   if (e.allDay) return "All day";
   const s = new Date(e.start);
@@ -221,17 +221,22 @@ const FIXED_LINKS = [
 ];
 const STARTER_LINKS = [
   { title: "Spotify", url: "https://open.spotify.com/" },
-  { title: "Camera test", url: "camera.html" },
   { title: "Wi-Fi", action: "wifi" },
-  { title: "EAGLE menu", action: "menu" },
+  { title: "Facebook", url: "https://www.facebook.com/" },
 ];
 const MAX_LINKS = 24;
 let myLinks = [];
 
 async function loadLinks() {
   try {
-    const s = await browser.storage.local.get({ links: null });
+    const s = await browser.storage.local.get({ links: null, linksVersion: 1 });
     myLinks = Array.isArray(s.links) ? s.links : STARTER_LINKS.slice();
+    if (Array.isArray(s.links) && s.linksVersion < 2) {
+      // v2: Camera test and EAGLE menu moved to the E menu; Facebook added
+      myLinks = myLinks.filter((l) => l.url !== "camera.html" && l.action !== "menu");
+      if (!myLinks.some((l) => /facebook\.com/i.test(l.url || ""))) myLinks.push({ title: "Facebook", url: "https://www.facebook.com/" });
+      await browser.storage.local.set({ links: myLinks, linksVersion: 2 });
+    }
   } catch (e) { myLinks = STARTER_LINKS.slice(); }
 }
 async function saveLinks() { try { await browser.storage.local.set({ links: myLinks }); } catch (e) { /* ignore */ } }

@@ -25,10 +25,10 @@
     const box = document.createElement("div");
     box.style.cssText = "font:15px 'Noto Sans','DejaVu Sans',sans-serif;color:#fff;background:#151515;max-width:360px;" +
       "padding:14px 18px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.6);cursor:pointer;border:3px solid " +
-      (msg.critical ? "#e0483e" : "#ff7a00");
+      (msg.critical ? "#e0483e" : (msg.accent || "#ff7a00"));
     const title = document.createElement("div");
     title.textContent = "Low battery";
-    title.style.cssText = "font-weight:800;margin-bottom:4px;color:" + (msg.critical ? "#ff6b61" : "#ff7a00");
+    title.style.cssText = "font-weight:800;margin-bottom:4px;color:" + (msg.critical ? "#ff6b61" : (msg.accent || "#ff7a00"));
     const text = document.createElement("div");
     text.textContent = msg.text;
     box.append(title, text);

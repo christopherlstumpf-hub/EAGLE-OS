@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <style>
   body { margin:0; width:260px; background:#111; color:#d6d6d6; font: 14px "Noto Sans","DejaVu Sans",sans-serif; }
-  header { padding:12px 14px 8px; border-bottom:3px solid #ff7a00; font-weight:800; letter-spacing:.06em; color:#e8e8e8; }
+  header { padding:12px 14px 8px; border-bottom:3px solid var(--orange, #ff7a00); font-weight:800; letter-spacing:.06em; color:#e8e8e8; }
   header small { display:block; font-weight:400; letter-spacing:0; color:#8a8a8a; font-size:11px; margin-top:2px; }
   .list { padding:6px; }
   button { display:block; width:100%; text-align:left; padding:10px 12px; margin:2px 0; border:0; border-radius:6px;
            background:transparent; color:#d6d6d6; font:inherit; cursor:pointer; }
   button:hover, button:focus { background:#2a2a2a; color:#fff; outline:none; }
-  button.install { background:#ff7a00; color:#000; font-weight:700; margin-top:6px; }
-  button.install:hover, button.install:focus { background:#ff9330; color:#000; }
+  button.install { background:var(--orange, #ff7a00); color:#000; font-weight:700; margin-top:6px; }
+  button.install:hover, button.install:focus { background:var(--orange-hover, #ff9330); color:#000; }
   hr { border:0; border-top:1px solid #333; margin:6px 0; }
   .hidden { display:none; }
   #batt { color:#d6d6d6; font-size:12px; margin-top:6px; }
@@ -25,6 +25,7 @@
     <button data-action="display">Display and screen size</button>
     <button data-action="sound">Sound</button>
     <button data-action="datetime">Date and time</button>
+    <button data-action="colors">Colour scheme</button>
     <button data-action="screensaver">Screen timeout and screensaver</button>
     <button data-action="camera">Camera test</button>
     <button data-action="security">Security (antivirus)</button>
@@ -35,6 +36,7 @@
     <button data-action="restart">Restart</button>
     <button data-action="shutdown">Shut down</button>
   </div>
+  <script src="theme.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

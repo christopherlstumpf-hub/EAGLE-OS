@@ -189,7 +189,7 @@ async function checkBattery() {
         ? "Battery at " + b.percent + "%. Plug in now: EAGLE-OS will shut down at 3% to protect your files."
         : "Battery at " + b.percent + "%. Plug in the charger soon.";
       const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
-      const warn = { type: "battery-warn", text: msg, critical: level === 5 };
+      const warn = { type: "battery-warn", text: msg, critical: level === 5, accent: currentAccent };
       if (tab) browser.tabs.sendMessage(tab.id, warn).catch(() => {});
       browser.runtime.sendMessage(warn).catch(() => {});   // EAGLE pages (start page, settings)
       break;
@@ -198,3 +198,65 @@ async function checkBattery() {
 }
 checkBattery();
 setInterval(checkBattery, 60000);
+
+// ---------- Colour scheme: Firefox toolbar colours and the E button follow the chosen accent ----------
+const BASE_THEME = {
+  "frame": "#0b0b0b",
+  "frame_inactive": "#0b0b0b",
+  "tab_background_text": "#b8b8b8",
+  "tab_selected": "#2a2a2a",
+  "tab_text": "#ffffff",
+  "tab_line": "#ff7a00",
+  "tab_loading": "#ff7a00",
+  "toolbar": "#2a2a2a",
+  "toolbar_text": "#e6e6e6",
+  "toolbar_field": "#141414",
+  "toolbar_field_text": "#f0f0f0",
+  "toolbar_field_border": "#3c3c3c",
+  "toolbar_field_focus": "#141414",
+  "toolbar_field_text_focus": "#ffffff",
+  "toolbar_field_border_focus": "#ff7a00",
+  "toolbar_field_highlight": "#ff7a00",
+  "toolbar_field_highlight_text": "#000000",
+  "toolbar_top_separator": "#2a2a2a",
+  "toolbar_bottom_separator": "#000000",
+  "icons": "#d6d6d6",
+  "icons_attention": "#ff7a00",
+  "button_background_hover": "#3a3a3a",
+  "button_background_active": "#4a4a4a",
+  "popup": "#1e1e1e",
+  "popup_text": "#e6e6e6",
+  "popup_border": "#3c3c3c",
+  "popup_highlight": "#ff7a00",
+  "popup_highlight_text": "#000000",
+  "ntp_background": "#0b0b0b",
+  "ntp_text": "#e6e6e6",
+  "sidebar": "#1e1e1e",
+  "sidebar_text": "#e6e6e6",
+  "sidebar_border": "#3c3c3c"
+};
+let currentAccent = EAGLE_DEFAULT_ACCENT;
+async function applyAccent(accent) {
+  currentAccent = accent || EAGLE_DEFAULT_ACCENT;
+  if (currentAccent.toLowerCase() === EAGLE_DEFAULT_ACCENT) {
+    try { await browser.theme.reset(); } catch (e) { /* ignore */ }
+  } else {
+    const colors = {};
+    for (const [k, v] of Object.entries(BASE_THEME)) colors[k] = v.toLowerCase() === "#ff7a00" ? currentAccent : v;
+    try { await browser.theme.update({ colors }); } catch (e) { /* ignore */ }
+  }
+  // E button icon
+  try {
+    const imageData = {};
+    for (const size of [64, 128]) {
+      const img = new Image();
+      img.src = browser.runtime.getURL(`icon-${size}.png`);
+      await img.decode();
+      const c = eagleTint(img, currentAccent);
+      imageData[size] = c.getContext("2d").getImageData(0, 0, c.width, c.height);
+    }
+    await browser.browserAction.setIcon({ imageData });
+  } catch (e) { /* keep the packaged icon */ }
+}
+browser.storage.local.get({ accent: EAGLE_DEFAULT_ACCENT }).then((s) => applyAccent(s.accent));
+browser.storage.onChanged.addListener((ch) => { if (ch.accent) applyAccent(ch.accent.newValue); });

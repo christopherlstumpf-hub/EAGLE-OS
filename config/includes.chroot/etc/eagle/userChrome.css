@@ -11,7 +11,7 @@
 }
 #menu_eagle-os-browser-action:hover .toolbarbutton-badge-stack,
 #menu_eagle-os-browser-action[open] .toolbarbutton-badge-stack {
-  background-color: rgba(255, 122, 0, 0.25) !important;
+  background-color: color-mix(in srgb, var(--toolbar-field-focus-border-color, #ff7a00) 25%, transparent) !important;
 }
 #menu_eagle-os-browser-action {
   margin-inline: 4px !important;

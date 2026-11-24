@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "EAGLE-OS menu",
-  "version": "1.6",
+  "version": "1.7",
   "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Date and time, Camera, calendar links, Security, Disks, Updates, screen timeout and screensaver",
   "browser_specific_settings": {
     "gecko": {
@@ -12,7 +12,8 @@
     "nativeMessaging",
     "storage",
     "tabs",
-    "<all_urls>"
+    "<all_urls>",
+    "theme"
   ],
   "icons": {
     "64": "icon-64.png",
@@ -29,6 +30,7 @@
   },
   "background": {
     "scripts": [
+      "theme.js",
       "ical.js",
       "background.js"
     ]
