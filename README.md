@@ -110,6 +110,10 @@ Everything fits on one screen with no scrolling: search, compact link buttons, a
 
 Orange E button → **Colour scheme**. EAGLE Orange is the original and the default; the other eight colours come from the Mountains screensaver pictures (Sunset Gold, Sunset Ember, Dawn Glow, Alpenglow, Alpine Sky, Mountain Lake, Twilight Peaks, Pine Forest). The choice recolours the Firefox toolbar highlights, the E button, the logo's accents, the start page and the EAGLE pages; black and grey stay. The boot screens and setup screens keep the original orange.
 
+## Google Chrome (standard edition)
+
+Orange E menu → **Web browser** → **Install Google Chrome**. EAGLE downloads Chrome from Google (about 110 MB; Google's terms don't allow it on the stick itself), installs it, and asks whether to open EAGLE in Chrome. Chrome then updates itself with the daily updates. The EAGLE start page, E button, calendar, battery, screensaver, colour scheme and settings screens all work in Chrome too, and your links, calendars and colours are shared between Firefox and Chrome. Switch back to Firefox or remove Chrome on the same screen. EAGLE-OS Lite stays on Firefox to save memory.
+
 ## Printers
 
 Most Wi-Fi and network printers (AirPrint, IPP Everywhere, Mopria; nearly every printer made since about 2013) show up by themselves when you print from Firefox (**Ctrl+P** or ☰ → Print). To add one for good, open the orange E menu → **Printers**:

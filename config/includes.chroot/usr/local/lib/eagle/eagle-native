@@ -8,8 +8,9 @@ Firefox is closed; the session opens that screen, then reopens Firefox.
 """
 import json, os, struct, subprocess, sys
 
-SCREENS = {"wifi", "display", "sound", "datetime", "printers", "disks", "security", "updates", "install", "menu"}
+SCREENS = {"wifi", "display", "sound", "datetime", "browser", "printers", "disks", "security", "updates", "install", "menu"}
 REQUEST = os.path.expanduser("~/.config/eagle/request")
+SHARED = os.path.expanduser("~/.config/eagle/addon-settings.json")   # same settings in Firefox and Chrome
 
 
 def read_msg():
@@ -107,6 +108,23 @@ def main():
             elif key == "DATE":
                 built = val.strip('"')
         send({"ok": True, "live": live, "variant": variant, "version": version, "built": built})
+    elif action == "settings_load":
+        try:
+            with open(SHARED) as f:
+                send({"ok": True, "data": json.load(f)})
+        except (OSError, ValueError):
+            send({"ok": False})
+    elif action == "settings_save":
+        data = msg.get("data")
+        if isinstance(data, dict) and len(json.dumps(data)) < 512 * 1024:
+            os.makedirs(os.path.dirname(SHARED), exist_ok=True)
+            tmp = SHARED + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f)
+            os.replace(tmp, SHARED)
+            send({"ok": True})
+        else:
+            send({"ok": False})
     elif action == "camera_status":
         facetime = False
         for d in os.listdir("/sys/bus/pci/devices"):
@@ -148,6 +166,7 @@ def main():
         sys.stdout.flush()
         # Close Firefox; the EAGLE session opens the screen and reopens Firefox afterwards.
         subprocess.Popen(["pkill", "-TERM", "-x", "firefox-esr"])
+        subprocess.Popen(["pkill", "-TERM", "-x", "chrome"])
     elif action == "restart":
         send({"ok": True})
         subprocess.Popen(["systemctl", "reboot"])

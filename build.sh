@@ -19,7 +19,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 WORK="$ROOT/build/$VARIANT"
 
 apt-get update
-apt-get install -y live-build rsync zip
+apt-get install -y live-build rsync zip python3-cryptography
 
 # Fresh working copy of the build config, with the variant's changes laid on top
 rm -rf "$WORK"
@@ -49,6 +49,43 @@ fi
 mkdir -p config/includes.chroot/usr/share/eagle
 (cd "$ADDON" && rm -f ../eagle-menu.xpi && zip -q -r -X ../eagle-menu.xpi .)
 mv -f "$WORK/eagle-menu.xpi" config/includes.chroot/usr/share/eagle/eagle-menu.xpi
+# Google Chrome version of the add-on (standard edition): signed CRX served to Chrome from this PC
+# (eagle-chrome-addon.service), plus Chrome's policies and native messaging host for its ID.
+if [ "$VARIANT" = standard ]; then
+  CHDIR=config/includes.chroot/usr/share/eagle/chrome
+  BUILDNO=$(printf '%s' "${EAGLE_VERSION:-}" | grep -o '[0-9]\+' | tail -1)
+  CHROME_ID=$(python3 config/branding/make_chrome_ext.py "$ADDON" "$CHDIR" "2.0.${BUILDNO:-0}")
+  mkdir -p config/includes.chroot/etc/opt/chrome/policies/managed config/includes.chroot/etc/opt/chrome/native-messaging-hosts
+  cat > config/includes.chroot/etc/opt/chrome/policies/managed/eagle.json <<JSON
+{
+  "ExtensionSettings": {
+    "$CHROME_ID": { "installation_mode": "force_installed", "update_url": "http://127.0.0.1:8743/update.xml", "toolbar_pin": "force_pinned" }
+  },
+  "HomepageLocation": "chrome-extension://$CHROME_ID/start.html",
+  "HomepageIsNewTabPage": false,
+  "ShowHomeButton": true,
+  "RestoreOnStartup": 4,
+  "RestoreOnStartupURLs": ["chrome-extension://$CHROME_ID/start.html"],
+  "DefaultBrowserSettingEnabled": false,
+  "MetricsReportingEnabled": false,
+  "PromotionalTabsEnabled": false,
+  "BackgroundModeEnabled": false,
+  "PrivacySandboxPromptEnabled": false,
+  "SuppressUnsupportedOSWarning": true,
+  "HardwareAccelerationModeEnabled": true
+}
+JSON
+  cat > config/includes.chroot/etc/opt/chrome/native-messaging-hosts/eagle.json <<JSON
+{
+  "name": "eagle",
+  "description": "EAGLE-OS system actions",
+  "path": "/usr/local/lib/eagle/eagle-native",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://$CHROME_ID/"]
+}
+JSON
+  echo "Chrome add-on: $CHROME_ID (2.0.${BUILDNO:-0})"
+fi
 rm -rf "$ADDON"
 
 chmod +x auto/* config/hooks/live/*.hook.* config/includes.chroot/usr/local/bin/* config/includes.chroot/usr/local/sbin/*
@@ -73,6 +110,7 @@ mv -f live-image-amd64.hybrid.iso "$ROOT/out/$NAME.iso"
   echo "installer packages: $(find chroot/usr/share/eagle/debs -name '*.deb' -printf '%f ' 2>/dev/null)"
   echo "toolbar add-on: $(ls chroot/usr/share/eagle/eagle-menu.xpi 2>/dev/null || echo missing)"
   echo "version: ${EAGLE_VERSION:-dev}"
+  [ -r config/includes.chroot/usr/share/eagle/chrome/id ] && echo "chrome add-on: $(cat config/includes.chroot/usr/share/eagle/chrome/id)"
   echo; echo "== Mac drivers =="; cat chroot/usr/share/eagle/mac-drivers.txt 2>/dev/null || echo "missing"
   echo "unsquashfs: $(ls chroot/usr/bin/unsquashfs 2>/dev/null || echo missing)"
   echo; echo "== Boot menu labels =="

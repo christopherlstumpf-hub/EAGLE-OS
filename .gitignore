@@ -1,5 +1,7 @@
 *.iso
+*.pyc
 .build/
+__pycache__/
 binary/
 build.log
 build/

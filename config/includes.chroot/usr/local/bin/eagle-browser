@@ -1,5 +1,6 @@
 #!/bin/bash
-# Runs inside cage: applies the saved display settings, then starts Firefox.
+# Runs inside cage: applies the saved display settings, then starts the web browser:
+# Firefox, or Google Chrome when it is installed and chosen in the EAGLE menu > Web browser.
 
 HOME_URL="moz-extension://6f1c2e8a-3b7d-4e59-9a0b-5e61a9e00001/start.html"
 KIOSK=0
@@ -19,6 +20,24 @@ if [ -r "$CONF/display" ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
   fi
 fi
 
+# ---------- Google Chrome ----------
+BROWSER=$(cat "$CONF/browser" 2>/dev/null || echo firefox)
+if [ "$BROWSER" = chrome ] && command -v google-chrome-stable >/dev/null && [ -r /usr/share/eagle/chrome/id ]; then
+  CHROME_ID=$(cat /usr/share/eagle/chrome/id)
+  DATA="$HOME/.eagle-chrome"
+  mkdir -p "$DATA/Default"
+  # no "Chrome didn't shut down correctly" bubble: EAGLE closes Chrome when it opens its screens
+  sed -i 's/"exit_type":"[A-Za-z]*"/"exit_type":"Normal"/; s/"exited_cleanly":false/"exited_cleanly":true/' "$DATA/Default/Preferences" 2>/dev/null
+  args=(--user-data-dir="$DATA" --no-first-run --no-default-browser-check --password-store=basic
+        --start-maximized --disable-session-crashed-bubble)
+  if [ -n "${WAYLAND_DISPLAY:-}" ]; then args+=(--ozone-platform=wayland --enable-features=UseOzonePlatform); else args+=(--ozone-platform=x11); fi
+  mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+  [ "${mem_kb:-0}" -le 4194304 ] && args+=(--renderer-process-limit=4)
+  [ "$KIOSK" = "1" ] && args+=(--kiosk)
+  exec google-chrome-stable "${args[@]}" "chrome-extension://$CHROME_ID/start.html"
+fi
+
+# ---------- Firefox ----------
 # Wayland normally; X11 in the basic-display fallback
 if [ -n "${WAYLAND_DISPLAY:-}" ]; then export MOZ_ENABLE_WAYLAND=1; else unset MOZ_ENABLE_WAYLAND; fi
 

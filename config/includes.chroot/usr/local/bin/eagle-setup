@@ -2,7 +2,7 @@
 # EAGLE-OS setup and menu screen (runs in a full-screen terminal under cage).
 #   eagle-setup --first-run   welcome, Wi-Fi, display, sound, then start browsing
 #   eagle-setup --menu        shown when Firefox is closed: adds Updates / Install / Restart / Shut down
-#   eagle-setup --action X    open one screen (wifi, display, sound, datetime, printers, disks, security, updates, install, menu) and return
+#   eagle-setup --action X    open one screen (wifi, display, sound, datetime, browser, printers, disks, security, updates, install, menu) and return
 
 MODE_ARG="${1:---menu}"
 ACTION_ARG="${2:-}"
@@ -332,6 +332,52 @@ datetime_menu() {
 }
 
 # ---------- Install ----------
+# ---------- Web browser: Firefox or Google Chrome (standard edition) ----------
+browser_menu() {
+  local T="$TITLE · Web browser" cur chrome_ver msg items=() choice
+  while true; do
+    cur=$(cat "$CONF/browser" 2>/dev/null || echo firefox)
+    chrome_ver=$(sudo -n /usr/local/sbin/eagle-chrome status 2>/dev/null)
+    msg="EAGLE-OS opens: $([ "$cur" = chrome ] && echo "Google Chrome" || echo "Firefox")\n"
+    if [ "$chrome_ver" = not-installed ] || [ -z "$chrome_ver" ]; then
+      msg+="\nGoogle Chrome isn't installed. It's downloaded from Google (about 110 MB) and then updates itself with the daily updates.\nYour EAGLE start page, links, calendars and colours come along."
+      is_live && msg+="\n\nRunning from the USB stick: Chrome is forgotten at restart. Install EAGLE-OS to keep it."
+      items=(chrome-install "Install Google Chrome" firefox "Keep using Firefox" back "Back")
+    else
+      msg+="\nGoogle Chrome $chrome_ver is installed."
+      items=()
+      [ "$cur" = chrome ] && items+=(firefox "Use Firefox") || items+=(chrome "Use Google Chrome")
+      items+=(chrome-remove "Remove Google Chrome" back "Back")
+    fi
+    choice=$(whiptail --title "$T" --menu "$msg" 20 $W 4 "${items[@]}" 3>&1 1>&2 2>&3) || return
+    case "$choice" in
+      chrome-install)
+        local out rc
+        out=$(mktemp)
+        sudo -n /usr/local/sbin/eagle-chrome install 2>"$out" \
+          | whiptail --title "$T" --gauge "Downloading Google Chrome from Google…\n\nThis takes a few minutes. Then it installs (about a minute)." 10 $W 0
+        rc=${PIPESTATUS[0]}
+        if [ "$rc" = 0 ]; then
+          if whiptail --title "$T" --yesno "Google Chrome is installed.\n\nOpen EAGLE-OS in Google Chrome now?\n(You can switch back to Firefox here any time.)" 12 $W; then
+            echo chrome > "$CONF/browser"; rm -f "$out"; return
+          fi
+        else
+          whiptail --title "$T" --msgbox "Google Chrome didn't install.\n\n$(cat "$out")" 12 $W
+        fi
+        rm -f "$out" ;;
+      chrome) echo chrome > "$CONF/browser"; return ;;
+      firefox) echo firefox > "$CONF/browser"; return ;;
+      chrome-remove)
+        if whiptail --title "$T" --yesno "Remove Google Chrome?\n\nEAGLE-OS will use Firefox. Your start page links, calendars and colours stay." 11 $W; then
+          whiptail --title "$T" --infobox "Removing Google Chrome…" 7 $W
+          sudo -n /usr/local/sbin/eagle-chrome remove >/dev/null 2>&1
+          echo firefox > "$CONF/browser"
+        fi ;;
+      back|*) return ;;
+    esac
+  done
+}
+
 # ---------- Printers ----------
 PR() { sudo -n /usr/local/sbin/eagle-printers "$@"; }
 printers_menu() {
@@ -409,6 +455,7 @@ if [ "$MODE_ARG" = "--action" ]; then
     datetime) datetime_menu ;;
     disks)   disks_gparted ;;
     security) security_menu ;;
+    browser) browser_menu ;;
     printers) printers_menu ;;
     updates) updates_menu ;;
     install) install_eagle ;;
@@ -424,6 +471,7 @@ fi
 while true; do
   items=(browse "Start browsing" wifi "Wi-Fi and network" display "Display and screen size" sound "Sound" datetime "Date and time")
   if [ "$MODE_ARG" = "--menu" ]; then
+    [ "$(cat /etc/eagle/variant 2>/dev/null)" = lite ] || items+=(browser "Web browser (Firefox or Google Chrome)")
     items+=(printers "Printers" security "Security (antivirus)" disks "Disks and partitions (GParted)" updates "Updates")
   fi
   if is_live; then
@@ -440,6 +488,7 @@ while true; do
     datetime) datetime_menu ;;
     disks)    disks_gparted ;;
     security) security_menu ;;
+    browser) browser_menu ;;
     printers) printers_menu ;;
     updates)  updates_menu ;;
     install)  install_eagle ;;

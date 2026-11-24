@@ -8,3 +8,4 @@ kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-datetime
 # Camera test page: try the Mac camera setup again
 kiosk ALL=(root) NOPASSWD: /usr/bin/systemctl restart eagle-facetime-firmware.service
 kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-printers
+kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-chrome

@@ -1,0 +1,12 @@
+[Unit]
+Description=EAGLE-OS: serves the EAGLE add-on to Google Chrome (this PC only)
+ConditionPathExists=/usr/share/eagle/chrome/update.xml
+
+[Service]
+DynamicUser=yes
+ExecStart=/usr/bin/python3 -m http.server 8743 --bind 127.0.0.1 --directory /usr/share/eagle/chrome
+Nice=10
+MemoryMax=40M
+
+[Install]
+WantedBy=multi-user.target

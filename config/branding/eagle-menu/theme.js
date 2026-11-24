@@ -20,13 +20,9 @@ function eagleShade(c, f) { // f > 0 lighter, f < 0 darker
 }
 
 // Recolour the orange parts of an image (logo, E icon) to the accent colour.
-function eagleTint(img, accent) {
-  const c = document.createElement("canvas");
-  c.width = img.naturalWidth; c.height = img.naturalHeight;
-  const ctx = c.getContext("2d");
-  ctx.drawImage(img, 0, 0);
-  if (accent.toLowerCase() === EAGLE_DEFAULT_ACCENT) return c;
-  const d = ctx.getImageData(0, 0, c.width, c.height), p = d.data;
+function eagleTintPixels(d, accent) {   // d: ImageData, changed in place
+  if (accent.toLowerCase() === EAGLE_DEFAULT_ACCENT) return d;
+  const p = d.data;
   const [ar, ag, ab] = eagleHex(accent);
   for (let i = 0; i < p.length; i += 4) {
     const r = p[i], g = p[i + 1], b = p[i + 2];
@@ -37,7 +33,16 @@ function eagleTint(img, accent) {
     const k = mx / 255;                                                   // keep its brightness
     p[i] = Math.round(ar * k); p[i + 1] = Math.round(ag * k); p[i + 2] = Math.round(ab * k);
   }
-  ctx.putImageData(d, 0, 0);
+  return d;
+}
+function eagleTint(img, accent) {        // pages: <img> -> canvas
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  if (accent.toLowerCase() === EAGLE_DEFAULT_ACCENT) return c;
+  const d = ctx.getImageData(0, 0, c.width, c.height);
+  ctx.putImageData(eagleTintPixels(d, accent), 0, 0);
   return c;
 }
 

@@ -8,26 +8,66 @@ const DEFAULTS = { timeoutMin: 0, saverMin: 10, saverTheme: "season" };
 const START = browser.runtime.getURL("start.html");
 const SAVER = browser.runtime.getURL("screensaver.html");
 
+const ACTION = browser.action || browser.browserAction;   // Chrome / Firefox toolbar button
+
+// Repeating jobs. Firefox keeps this page running; Chrome stops its service worker when idle,
+// so there alarms (every 30 s or more) wake it up and the state below is kept in storage.session.
+const alarmJobs = {};
+function every(name, ms, fn) {
+  setInterval(fn, ms);
+  if (EAGLE_IS_CHROME && browser.alarms) {
+    alarmJobs[name] = fn;
+    browser.alarms.create(name, { periodInMinutes: Math.max(0.5, ms / 60000) });
+  }
+}
+if (EAGLE_IS_CHROME && browser.alarms) {
+  browser.alarms.onAlarm.addListener((a) => { if (alarmJobs[a.name]) alarmJobs[a.name](); });
+}
+
 let settings = { ...DEFAULTS };
 let lastActivity = Date.now();
 let resetDone = false;
 let saver = null;               // { tabId, prevTabId, windowId, prevState }
 let suppressUntil = 0;          // ignore tab events caused by our own changes
+let lastSaved = 0;
+async function saveState(force) {
+  if (!EAGLE_IS_CHROME || !browser.storage.session) return;
+  if (!force && Date.now() - lastSaved < 15000) return;
+  lastSaved = Date.now();
+  try { await browser.storage.session.set({ bg: { lastActivity, resetDone, saver } }); } catch (e) { /* ignore */ }
+}
+const stateReady = (async () => {
+  if (!EAGLE_IS_CHROME || !browser.storage.session) return;
+  try {
+    const b = (await browser.storage.session.get("bg")).bg;
+    if (b) { lastActivity = b.lastActivity; resetDone = b.resetDone; saver = b.saver; }
+  } catch (e) { /* ignore */ }
+})();
 
 async function loadSettings() {
   try { settings = { ...DEFAULTS, ...(await browser.storage.local.get(DEFAULTS)) }; } catch (e) { settings = { ...DEFAULTS }; }
 }
-loadSettings();
+const settingsReady = loadSettings();
 browser.storage.onChanged.addListener((changes) => {
+  shareSettings(changes);
   if (Object.keys(changes).some((k) => k in DEFAULTS)) { loadSettings(); activity(); }
-  if (changes.calendars) syncCalendars();
+  if (changes.calendars) syncCalendars(true);
 });
 
-function activity() { lastActivity = Date.now(); resetDone = false; }
+function activity() { lastActivity = Date.now(); resetDone = false; saveState(); }
 function suppress() { suppressUntil = Date.now() + 2500; }
 function ours() { return Date.now() < suppressUntil; }
 
-browser.runtime.onMessage.addListener((msg, sender) => {
+// Works in Firefox and Chrome: answers through sendResponse
+browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  const r = handleMessage(msg, sender);
+  if (r && typeof r.then === "function") {
+    r.then((v) => sendResponse(v), () => sendResponse(undefined));
+    return true;
+  }
+  return false;
+});
+function handleMessage(msg, sender) {
   if (!msg || !msg.type) return undefined;
   switch (msg.type) {
     case "activity":
@@ -40,22 +80,22 @@ browser.runtime.onMessage.addListener((msg, sender) => {
     case "saver-preview":
       return openSaver(true);
     case "cal-refresh":
-      return syncCalendars();
+      return syncCalendars(true);
     case "get-battery":
       return Promise.resolve(lastBattery);
     case "get-settings":
-      return Promise.resolve(settings);
+      return settingsReady.then(() => settings);
     case "get-state":
-      return Promise.resolve({ idleSeconds: Math.round((Date.now() - lastActivity) / 1000), saver: !!saver, settings });
+      return settingsReady.then(() => ({ idleSeconds: Math.round((Date.now() - lastActivity) / 1000), saver: !!saver, settings }));
     default:
       return undefined;
   }
-});
+}
 
 browser.tabs.onActivated.addListener((info) => { if (!ours() && !(saver && info.tabId === saver.tabId)) activity(); });
 browser.tabs.onCreated.addListener((tab) => { if (!ours() && !(saver && tab.id === saver.tabId)) activity(); });
 browser.tabs.onRemoved.addListener((tabId) => {
-  if (saver && tabId === saver.tabId) { const s = saver; saver = null; restoreWindow(s); activity(); }
+  if (saver && tabId === saver.tabId) { const s = saver; saver = null; restoreWindow(s); activity(); saveState(true); }
 });
 
 async function restoreWindow(s) {
@@ -70,6 +110,7 @@ async function openSaver(preview) {
   [active] = await browser.tabs.query({ active: true, windowId: win.id });
   const tab = await browser.tabs.create({ url: SAVER + (preview ? "#preview" : ""), active: true, windowId: win.id });
   saver = { tabId: tab.id, prevTabId: active ? active.id : null, windowId: win.id, prevState: win.state };
+  saveState(true);
   try { await browser.windows.update(win.id, { state: "fullscreen" }); } catch (e) { /* not supported */ }
 }
 
@@ -77,6 +118,7 @@ async function closeSaver() {
   if (!saver) return;
   const s = saver;
   saver = null;
+  saveState(true);
   suppress();
   await restoreWindow(s);
   if (s.prevTabId) { try { await browser.tabs.update(s.prevTabId, { active: true }); } catch (e) { /* gone */ } }
@@ -94,6 +136,8 @@ async function resetToStart() {
 }
 
 async function tick() {
+  await stateReady;
+  await settingsReady;
   try {
     const playing = await browser.tabs.query({ audible: true });
     if (playing.some((t) => !(saver && t.id === saver.tabId))) activity();
@@ -101,13 +145,14 @@ async function tick() {
   const idleMin = (Date.now() - lastActivity) / 60000;
   if (settings.timeoutMin > 0 && idleMin >= settings.timeoutMin && !resetDone) {
     resetDone = true;
+    saveState(true);
     await resetToStart();
   }
   if (settings.saverMin > 0 && idleMin >= settings.saverMin && !saver) {
     await openSaver(false);
   }
 }
-setInterval(tick, 5000);
+every("tick", 5000, tick);
 
 // ---------- Calendar links (Google, Outlook, iCloud, Yahoo ... iCal links) ----------
 // The links stay on this PC (storage.local "calendars"). Events from 6 weeks back to 13 months
@@ -125,12 +170,14 @@ async function fetchCalendar(c, from, to) {
     return EagleICal.parse(text, from, to).slice(0, 4000);
   } finally { clearTimeout(timer); }
 }
-function syncCalendars() {
+function syncCalendars(force) {
   if (syncing) return syncing;
   syncing = (async () => {
     let cals = [];
     try { cals = (await browser.storage.local.get({ calendars: [] })).calendars || []; } catch (e) { /* none */ }
     const prev = (await browser.storage.local.get({ calData: { events: [], status: {} } })).calData;
+    // Chrome wakes this code often: only refresh every 15 minutes unless asked
+    if (!force && prev.updated && Date.now() - prev.updated < 14 * 60000) return;
     const from = Date.now() - 42 * 86400000, to = Date.now() + 400 * 86400000;
     const events = [], status = {};
     for (const c of cals) {
@@ -151,8 +198,8 @@ function syncCalendars() {
   })().finally(() => { syncing = null; });
   return syncing;
 }
-syncCalendars();
-setInterval(syncCalendars, 15 * 60000);
+syncCalendars(false);
+every("calendars", 15 * 60000, () => syncCalendars(false));
 
 // ---------- Battery: level on the E button, warnings when low ----------
 let lastBattery = null;
@@ -168,7 +215,7 @@ async function checkBattery() {
   let b = null;
   try { b = await browser.runtime.sendNativeMessage("eagle", { action: "battery" }); } catch (e) { return; }
   lastBattery = b;
-  const ba = browser.browserAction;
+  const ba = ACTION;
   if (!b || !b.present || b.percent == null) {
     ba.setBadgeText({ text: "" }); ba.setTitle({ title: "EAGLE-OS menu" }); return;
   }
@@ -197,7 +244,7 @@ async function checkBattery() {
   }
 }
 checkBattery();
-setInterval(checkBattery, 60000);
+every("battery", 60000, checkBattery);
 
 // ---------- Colour scheme: Firefox toolbar colours and the E button follow the chosen accent ----------
 const BASE_THEME = {
@@ -238,24 +285,29 @@ const BASE_THEME = {
 let currentAccent = EAGLE_DEFAULT_ACCENT;
 async function applyAccent(accent) {
   currentAccent = accent || EAGLE_DEFAULT_ACCENT;
-  if (currentAccent.toLowerCase() === EAGLE_DEFAULT_ACCENT) {
-    try { await browser.theme.reset(); } catch (e) { /* ignore */ }
-  } else {
-    const colors = {};
-    for (const [k, v] of Object.entries(BASE_THEME)) colors[k] = v.toLowerCase() === "#ff7a00" ? currentAccent : v;
-    try { await browser.theme.update({ colors }); } catch (e) { /* ignore */ }
+  if (browser.theme) {   // Firefox only: toolbar colours
+    if (currentAccent.toLowerCase() === EAGLE_DEFAULT_ACCENT) {
+      try { await browser.theme.reset(); } catch (e) { /* ignore */ }
+    } else {
+      const colors = {};
+      for (const [k, v] of Object.entries(BASE_THEME)) colors[k] = v.toLowerCase() === "#ff7a00" ? currentAccent : v;
+      try { await browser.theme.update({ colors }); } catch (e) { /* ignore */ }
+    }
   }
-  // E button icon
+  // E button icon (works in both browsers: no page needed)
   try {
     const imageData = {};
     for (const size of [64, 128]) {
-      const img = new Image();
-      img.src = browser.runtime.getURL(`icon-${size}.png`);
-      await img.decode();
-      const c = eagleTint(img, currentAccent);
-      imageData[size] = c.getContext("2d").getImageData(0, 0, c.width, c.height);
+      const blob = await (await fetch(browser.runtime.getURL(`icon-${size}.png`))).blob();
+      const bmp = await createImageBitmap(blob);
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const ctx = c.getContext("2d");
+      ctx.drawImage(bmp, 0, 0);
+      const d = ctx.getImageData(0, 0, bmp.width, bmp.height);
+      eagleTintPixels(d, currentAccent);
+      imageData[size] = d;
     }
-    await browser.browserAction.setIcon({ imageData });
+    await ACTION.setIcon({ imageData });
   } catch (e) { /* keep the packaged icon */ }
 }
 browser.storage.local.get({ accent: EAGLE_DEFAULT_ACCENT }).then((s) => applyAccent(s.accent));
@@ -265,9 +317,9 @@ browser.storage.onChanged.addListener((ch) => { if (ch.accent) applyAccent(ch.ac
 // On some PCs Firefox can show a welcome/privacy page, a blank tab or an error before the
 // EAGLE add-on is ready. For the first 30 seconds, swap any such tab for the start page.
 const START_URL = browser.runtime.getURL("start.html");
-const NOT_EAGLE = /^(about:(blank|home|newtab|welcome|privatebrowsing|sessionrestore|tabcrashed|neterror|certerror)|moz-extension:\/\/[^/]+\/?$)|^https?:\/\/(www\.)?mozilla\.org\/.*(privacy|firstrun|whatsnew|welcome)|^https?:\/\/(www\.)?firefox\.com\//i;
-const FIRST_RUN_PAGE = /^about:(welcome|sessionrestore)|^https?:\/\/(www\.)?mozilla\.org\/|^https?:\/\/(www\.)?firefox\.com\//i;
-const guardUntil = Date.now() + 30000;
+const NOT_EAGLE = /^(about:(blank|home|newtab|welcome|privatebrowsing|sessionrestore|tabcrashed|neterror|certerror)|moz-extension:\/\/[^/]+\/?$|chrome:\/\/(newtab|new-tab-page|welcome|intro|whats-new)|chrome-search:)|^https?:\/\/(www\.)?mozilla\.org\/.*(privacy|firstrun|whatsnew|welcome)|^https?:\/\/(www\.)?firefox\.com\//i;
+const FIRST_RUN_PAGE = /^about:(welcome|sessionrestore)|^chrome:\/\/(welcome|intro|whats-new)|^https?:\/\/(www\.)?google\.com\/chrome\/|^https?:\/\/(www\.)?mozilla\.org\/|^https?:\/\/(www\.)?firefox\.com\//i;
+let guardUntil = 0;
 let guardRuns = 0;
 async function startupGuard() {
   if (Date.now() > guardUntil) return;
@@ -288,6 +340,41 @@ async function startupGuard() {
   const extra = tabs.filter((t) => FIRST_RUN_PAGE.test(t.url || ""));
   if (extra.length && extra.length < tabs.length) await browser.tabs.remove(extra.map((t) => t.id)).catch(() => {});
 }
-for (const ms of [500, 2000, 5000, 10000, 20000]) setTimeout(startupGuard, ms);
+function startGuards() {
+  guardUntil = Date.now() + 30000;
+  guardRuns = 0;
+  for (const ms of [500, 2000, 5000, 10000, 20000]) setTimeout(startupGuard, ms);
+}
+// Firefox loads this page once per start; Chrome's service worker restarts often, so use its startup event
+if (EAGLE_IS_CHROME) {
+  browser.runtime.onStartup.addListener(startGuards);
+  browser.runtime.onInstalled.addListener(startGuards);
+} else {
+  startGuards();
+}
 browser.tabs.onCreated.addListener(() => { if (Date.now() < guardUntil) setTimeout(startupGuard, 800); });
 browser.tabs.onUpdated.addListener((id, info) => { if (info.url && Date.now() < guardUntil) setTimeout(startupGuard, 300); });
+
+// ---------- Shared settings: links, calendars, colours and screen timeout are the same in ----------
+// ---------- Firefox and Chrome (kept in ~/.config/eagle/addon-settings.json by eagle-native) ----------
+const SHARED_KEYS = ["links", "linksVersion", "calendars", "accent", "timeoutMin", "saverMin", "saverTheme"];
+let importing = false;
+function shareSettings(changes) {
+  if (importing || !Object.keys(changes).some((k) => SHARED_KEYS.includes(k))) return;
+  browser.storage.local.get(SHARED_KEYS).then((values) => {
+    const stamp = Date.now();
+    browser.storage.local.set({ sharedStamp: stamp });
+    return browser.runtime.sendNativeMessage("eagle", { action: "settings_save", data: { stamp, values } });
+  }).catch(() => {});
+}
+(async () => {
+  try {
+    const r = await browser.runtime.sendNativeMessage("eagle", { action: "settings_load" });
+    const mine = (await browser.storage.local.get({ sharedStamp: 0 })).sharedStamp;
+    if (r && r.ok && r.data && r.data.stamp > mine && r.data.values) {
+      importing = true;
+      await browser.storage.local.set({ ...r.data.values, sharedStamp: r.data.stamp });
+      setTimeout(() => { importing = false; }, 1000);
+    }
+  } catch (e) { importing = false; }
+})();

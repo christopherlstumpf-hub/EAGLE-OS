@@ -1,0 +1,47 @@
+#!/bin/bash
+# EAGLE-OS: Google Chrome (standard edition). Run as root by the EAGLE menu via sudo.
+#   eagle-chrome status    installed version, or "not-installed"
+#   eagle-chrome install   download Chrome from Google and install it (adds Google's update source,
+#                          so Chrome then updates itself with the daily updates)
+#   eagle-chrome remove    uninstall Chrome
+# Google's terms don't allow Chrome on the EAGLE stick itself, so it is downloaded here.
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+DEB_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+# testing: eagle.chromedeb=URL on the boot command line
+read -ra CMDLINE < /proc/cmdline
+for w in "${CMDLINE[@]}"; do case "$w" in eagle.chromedeb=*) DEB_URL=${w#eagle.chromedeb=} ;; esac; done
+CACHE=/var/cache/eagle
+LOG=/var/log/eagle-chrome.log
+export DEBIAN_FRONTEND=noninteractive
+
+case "${1:-}" in
+  status)
+    if command -v google-chrome-stable >/dev/null; then
+      dpkg-query -W -f='${Version}\n' google-chrome-stable 2>/dev/null || echo installed
+    else echo not-installed; fi ;;
+
+  install)
+    [ "$(cat /etc/eagle/variant 2>/dev/null)" = lite ] && { echo "Google Chrome is for the standard edition (EAGLE-OS Lite uses Firefox to save memory)." >&2; exit 2; }
+    [ "$(uname -m)" = x86_64 ] || { echo "Google Chrome needs a 64-bit PC." >&2; exit 2; }
+    mkdir -p "$CACHE"; echo "== $(date) install from $DEB_URL" >> "$LOG"
+    # progress lines "NN" for the EAGLE screen
+    rm -f "$CACHE/chrome.deb"
+    curl -fL --retry 3 -o "$CACHE/chrome.deb" "$DEB_URL" --progress-bar 2>&1 \
+      | stdbuf -oL tr '\r' '\n' | stdbuf -oL sed -nE 's/.* ([0-9]+)(\.[0-9])?%.*/\1/p'
+    if ! { [ -s "$CACHE/chrome.deb" ] && dpkg-deb -I "$CACHE/chrome.deb" >/dev/null 2>&1; }; then
+      echo "Couldn't download Google Chrome. Check the internet connection." >&2; rm -f "$CACHE/chrome.deb"; exit 3
+    fi
+    printf 'XXX\n100\nInstalling Google Chrome (about a minute)…\nXXX\n'
+    apt-get install -y "$CACHE/chrome.deb" >> "$LOG" 2>&1 || { echo "Google Chrome didn't install (details in $LOG)." >&2; exit 4; }
+    rm -f "$CACHE/chrome.deb"
+    systemctl enable --now eagle-chrome-addon.service >> "$LOG" 2>&1 ;;
+
+  remove)
+    apt-get purge -y google-chrome-stable >> "$LOG" 2>&1
+    rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
+    systemctl disable --now eagle-chrome-addon.service >> "$LOG" 2>&1
+    echo "ok" ;;
+
+  *) echo "usage: eagle-chrome status|install|remove" >&2; exit 2 ;;
+esac

@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "EAGLE-OS menu",
+  "version": "2.0.0",
+  "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Date and time, Camera, calendar links, Security, Disks, Updates, screen timeout and screensaver",
+  "icons": {
+    "64": "icon-64.png",
+    "128": "icon-128.png"
+  },
+  "action": {
+    "default_title": "EAGLE-OS menu",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "64": "icon-64.png",
+      "128": "icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "sw.js"
+  },
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "tabs",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "shim.js",
+        "activity.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_start"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+# Test helper: fetches the current Google Chrome .deb so EAGLE's Chrome install can be tested in a
+# virtual PC without internet. Kept for 1 day only; never published in a release.
+name: Test Chrome download
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/test-chrome-deb.yml"]
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsSL -o chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          dpkg-deb -f chrome.deb Version Depends Recommends
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chrome-test-deb
+          path: chrome.deb
+          retention-days: 1

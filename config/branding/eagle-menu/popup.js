@@ -4,6 +4,7 @@ browser.runtime.sendNativeMessage("eagle", { action: "status" }).then((s) => {
 }).catch(() => {});
 
 browser.runtime.sendNativeMessage("eagle", { action: "status" }).then((st) => {
+  if (st && st.variant !== "lite") document.getElementById("browser-btn").classList.remove("hidden");
   if (!st || !st.version) return;
   const v = document.createElement("small");
   v.textContent = (st.variant === "lite" ? "Lite · " : "") + st.version.replace(/^build\s*/i, "Build ");

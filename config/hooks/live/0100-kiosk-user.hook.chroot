@@ -41,6 +41,9 @@ if [ -f /etc/UPower/UPower.conf ]; then
          -e 's/^PercentageAction=.*/PercentageAction=3/' -e 's/^CriticalPowerAction=.*/CriticalPowerAction=PowerOff/' /etc/UPower/UPower.conf
 fi
 
+# Google Chrome (standard edition, installed from the EAGLE menu > Web browser)
+chmod 0755 /usr/local/sbin/eagle-chrome
+
 # Printers: EAGLE menu > Printers (eagle-printers runs as root via sudo)
 chmod 0755 /usr/local/sbin/eagle-printers
 systemctl enable cups.service avahi-daemon.service 2>/dev/null || true

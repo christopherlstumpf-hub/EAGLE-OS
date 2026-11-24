@@ -65,6 +65,6 @@ function picCard(value, label, checked, thumbHTML) {
   }
 
   document.getElementById("preview").addEventListener("click", () => {
-    browser.runtime.sendMessage({ type: "saver-preview" });
+    browser.runtime.sendMessage({ type: "saver-preview" }).catch(() => {});
   });
 })();
