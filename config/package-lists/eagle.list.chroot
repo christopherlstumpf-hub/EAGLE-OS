@@ -109,3 +109,10 @@ avahi-daemon
 libnss-mdns
 printer-driver-hpcups
 printer-driver-gutenprint
+
+# Google Chrome needs these (Chrome itself is downloaded from Google when chosen)
+fonts-liberation
+libcurl3t64-gnutls
+libvulkan1
+wget
+xdg-utils
