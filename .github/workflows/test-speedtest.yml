@@ -1,0 +1,17 @@
+# Checks that the speed test servers the EAGLE Tools page uses still answer as expected.
+name: Test speed test servers
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["config/branding/eagle-menu/speedtest.js", ".github/workflows/test-speedtest.yml"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -s https://speed.cloudflare.com/meta | head -c 400; echo
+          curl -s -o /dev/null -w "ping (0 bytes): %{http_code} %{time_total}s\n" "https://speed.cloudflare.com/__down?bytes=0"
+          curl -s -o /dev/null -w "download 25 MB: %{http_code} %{size_download} bytes %{speed_download} B/s\n" "https://speed.cloudflare.com/__down?bytes=25000000"
+          head -c 10000000 /dev/zero > up.bin
+          curl -s -o /dev/null -w "upload 10 MB: %{http_code} %{size_upload} bytes %{speed_upload} B/s\n" -X POST --data-binary @up.bin "https://speed.cloudflare.com/__up"

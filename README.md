@@ -123,12 +123,19 @@ Orange E button → **Colour scheme**. EAGLE Orange is the original and the defa
 
 Orange E menu → **Web browser** → **Install Google Chrome**. EAGLE downloads Chrome from Google (about 150 MB; Google's terms don't allow it on the stick itself), installs it, and asks whether to open EAGLE in Chrome. Chrome then updates itself with the daily updates. The EAGLE start page, E button, calendar, battery, screensaver, colour scheme and settings screens all work in Chrome too, and your links, calendars and colours are shared between Firefox and Chrome. Switch back to Firefox or remove Chrome on the same screen. EAGLE-OS Lite stays on Firefox to save memory.
 
+## Tools
+
+Orange E menu → **Tools**:
+- **Internet speed test**: download, upload, ping and jitter for the current Wi-Fi or network, with your internet provider and a plain-English verdict (uses Cloudflare's speed test servers; one test uses about 100–300 MB).
+- **Camera test**, **Printers**, **Disks and partitions** (GParted) and **Virus scan**.
+
 ## Printers
 
 Most Wi-Fi and network printers (AirPrint, IPP Everywhere, Mopria; nearly every printer made since about 2013) show up by themselves when you print from Firefox (**Ctrl+P** or ☰ → Print). To add one for good, open the orange E menu → **Printers**:
 - **Find printers** lists printers on the network and USB; pick one to add it (the first one becomes the default).
 - **Add a network printer by IP address** for printers that don't show up (the address is on the printer's network settings).
-- **Print a test page**, **Choose the default printer**, **Remove a printer**.
+- **Print a test page** (an EAGLE-OS page with colour bars and text sizes; EAGLE waits for the printer and says whether it printed or what went wrong), **Choose the default printer**, **Remove a printer**.
+- **HP printers**: newer HP printers print driverless; older HP network and USB printers use HP's own HPLIP connection and drivers, which EAGLE picks automatically.
 Older USB printers use the HP (hpcups) or Gutenprint drivers when they aren't driverless. Running from the stick, printers are forgotten at restart; **Install** keeps them.
 
 ## Battery

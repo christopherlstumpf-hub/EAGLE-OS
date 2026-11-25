@@ -11,7 +11,7 @@ export LC_ALL=C          # CUPS messages in English, so they can be read below
 
 clean_name() { local n; n=$(printf '%s' "$1" | tr -c 'A-Za-z0-9_-' '_' | sed 's/__*/_/g; s/^_//; s/_$//'); printf '%s' "${n:0:40}"; }
 exists() { lpstat -p "$1" >/dev/null 2>&1; }
-make_default_if_first() { lpstat -d 2>/dev/null | grep -q "system default destination" || lpadmin -d "$1"; }
+make_default_if_first() { lpstat -d 2>/dev/null | grep -q '^system default destination:' || lpadmin -d "$1"; }
 
 case "${1:-}" in
   list)

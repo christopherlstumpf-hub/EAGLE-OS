@@ -27,6 +27,8 @@ for (const b of document.querySelectorAll("button[data-action]")) {
     const action = b.dataset.action;
     if (action === "camera") {
       await browser.tabs.create({ url: browser.runtime.getURL("camera.html") });
+    } else if (action === "tools") {
+      await browser.tabs.create({ url: browser.runtime.getURL("tools.html") });
     } else if (action === "links") {
       await browser.tabs.create({ url: browser.runtime.getURL("links.html") });
     } else if (action === "colors") {

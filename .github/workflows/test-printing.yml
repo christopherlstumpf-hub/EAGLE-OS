@@ -31,5 +31,6 @@ jobs:
           echo "== add-ip"; bash $P add-ip 127.0.0.1:8631 "HP OfficeJet" ; echo "exit $?"
           echo "== list"; bash $P list
           echo "== test"; bash $P test HP_OfficeJet; echo "exit $?"
+          echo "== default"; lpstat -d
           echo "== jobs received by the printer"; ls -la /tmp/jobs; find /tmp/jobs -type f | head
           echo "== cups log"; tail -20 /var/log/cups/error_log 2>/dev/null || true
