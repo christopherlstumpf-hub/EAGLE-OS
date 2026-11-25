@@ -337,14 +337,18 @@ async function applyAccent(accent) {
 browser.storage.local.get({ accent: EAGLE_DEFAULT_ACCENT }).then((s) => applyAccent(s.accent));
 browser.storage.onChanged.addListener((ch) => { if (ch.accent) applyAccent(ch.accent.newValue); });
 
-// ---------- Tabs: the EAGLE tab is always first (pinned, can't be closed) and the link tabs ----------
-// ---------- follow it in alphabetical order. A link tab loads its site only when clicked. ----------
+// ---------- Tabs: the EAGLE tab is always first, then the link tabs in alphabetical order. ----------
+// ---------- All are pinned (icon only) and can't be closed or moved; new tabs open to their right. ----------
+// ---------- A link tab loads its site only when clicked. ----------
 const START_URL = browser.runtime.getURL("start.html");
 const LINKTAB = browser.runtime.getURL("linktab.html");
 // Startup: Firefox/Chrome may show a welcome/privacy page or a blank tab before EAGLE is ready.
 const STRAY = /^(about:(blank|home|newtab|welcome|privatebrowsing|sessionrestore|tabcrashed)|moz-extension:\/\/[^/]+\/?$|chrome:\/\/(newtab|new-tab-page|welcome|intro|whats-new)|chrome-search:)|^https?:\/\/(www\.)?mozilla\.org\/.*(privacy|firstrun|whatsnew|welcome)|^https?:\/\/(www\.)?firefox\.com\/|^https?:\/\/(www\.)?google\.com\/chrome\//i;
 let startTabId = null;
 let linkTabs = {};                       // site address -> tab id
+const removingLinks = new Set();         // link tabs EAGLE itself is closing (removed in Link tabs)
+let activeTabId = null;
+browser.tabs.onActivated.addListener((info) => { activeTabId = info.tabId; });
 const tabsReady = (async () => {         // Chrome: remember the tab ids across service worker restarts
   if (!EAGLE_IS_CHROME || !browser.storage.session) return;
   try {
@@ -391,19 +395,21 @@ async function doEnsureTabs(create, activateStart) {
   for (const u of Object.keys(linkTabs)) {
     if (wanted.has(u)) continue;
     const t = tabs.find((x) => x.id === linkTabs[u]);
-    if (t && placeholderTarget(tabUrl(t))) await browser.tabs.remove(t.id).catch(() => {});
     delete linkTabs[u];
+    if (t) { removingLinks.add(t.id); await browser.tabs.remove(t.id).catch(() => {}); }
   }
   let index = 1;
   for (const l of links) {
     let id = linkTabs[l.url];
     if (id == null) {
       if (!create) continue;
-      const t = await browser.tabs.create({ windowId: win.id, url: linkTabUrl(l), index, active: false }).catch(() => null);
+      const t = await browser.tabs.create({ windowId: win.id, url: linkTabUrl(l), index, pinned: true, active: false }).catch(() => null);
       if (!t) continue;
       id = linkTabs[l.url] = t.id;
+      if (relinkActive === l.url) { relinkActive = null; browser.tabs.update(id, { active: true }).catch(() => {}); }
     } else {
       const t = tabs.find((x) => x.id === id);
+      if (t && !t.pinned) await browser.tabs.update(id, { pinned: true }).catch(() => {});
       if (t && t.index !== index) await browser.tabs.move(id, { index }).catch(() => {});
     }
     index++;
@@ -411,9 +417,21 @@ async function doEnsureTabs(create, activateStart) {
   saveTabs();
 }
 
-// The EAGLE tab can't be closed, moved or used for other sites
+// The EAGLE tab and link tabs can't be closed or moved; the EAGLE tab can't be used for other sites
+let relinkActive = null;
+let fixTimer = null;
+function fixTabsSoon() { clearTimeout(fixTimer); fixTimer = setTimeout(() => ensureTabs(false), 300); }
 browser.tabs.onRemoved.addListener((tabId, info) => {
-  for (const u of Object.keys(linkTabs)) if (linkTabs[u] === tabId) { delete linkTabs[u]; saveTabs(); }
+  const mine = removingLinks.delete(tabId);
+  for (const u of Object.keys(linkTabs)) {
+    if (linkTabs[u] !== tabId) continue;
+    delete linkTabs[u]; saveTabs();
+    if (!mine && !info.isWindowClosing) {
+      // closed by hand (middle-click, menu, Ctrl+W): it comes straight back in its place
+      if (tabId === activeTabId) relinkActive = u;
+      ensureTabs(true);
+    }
+  }
   if (tabId !== startTabId || info.isWindowClosing) return;
   startTabId = null;
   // closed (Ctrl+W): bring it straight back, in front (after the browser has picked its next tab)
@@ -424,8 +442,14 @@ browser.tabs.onRemoved.addListener((tabId, info) => {
 browser.tabs.onMoved.addListener((tabId, info) => {
   if (tabId === startTabId && info.toIndex !== 0) browser.tabs.move(tabId, { index: 0 }).catch(() => {});
   else if (tabId !== startTabId && info.toIndex === 0 && startTabId != null) browser.tabs.move(startTabId, { index: 0 }).catch(() => {});
+  if (Object.values(linkTabs).includes(tabId) || info.toIndex <= Object.keys(linkTabs).length) fixTabsSoon();
 });
 browser.tabs.onUpdated.addListener((tabId, info) => {
+  // unpinned by hand: pin it again
+  if (info.pinned === false && (tabId === startTabId || Object.values(linkTabs).includes(tabId))) {
+    browser.tabs.update(tabId, { pinned: true }).catch(() => {});
+    fixTabsSoon();
+  }
   if (tabId !== startTabId || !info.url) return;
   const u = info.url;
   if (u.startsWith(START_URL) || /^(about:blank|chrome:\/\/newtab)/.test(u)) return;

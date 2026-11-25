@@ -24,6 +24,21 @@ try {
   document.head.appendChild(link);
 } catch (e) { /* no icon */ }
 
+// the tabs are pinned (icon only), so show the site's own icon as soon as it can be fetched
+try {
+  const host = new URL(url).hostname;
+  const src = "https://www.google.com/s2/favicons?sz=64&domain=" + encodeURIComponent(host);
+  const img = new Image();
+  img.onload = () => {
+    if (img.naturalWidth < 2) return;
+    for (const l of document.querySelectorAll("link[rel=icon]")) l.remove();
+    const link = document.createElement("link");
+    link.rel = "icon"; link.href = src;
+    document.head.appendChild(link);
+  };
+  img.src = src;
+} catch (e) { /* keep the letter */ }
+
 function go() {
   if (document.visibilityState === "visible" && /^https?:\/\//i.test(url)) location.replace(url);
 }
