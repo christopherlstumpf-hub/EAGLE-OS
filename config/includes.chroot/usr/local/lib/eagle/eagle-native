@@ -95,6 +95,29 @@ EVENTS = "/run/eagle-events"
 SEEN = os.path.expanduser("~/.config/eagle/events-seen")
 
 
+def nm(*args):
+    try:
+        return subprocess.run(["nmcli", "-t", *args], capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def network():
+    """Wi-Fi / wired state for the small meter on the EAGLE tab."""
+    conn = (nm("networking", "connectivity").strip() or "unknown")
+    kind, ssid, signal = "none", "", None
+    for line in nm("-f", "TYPE,STATE", "device").splitlines():
+        t, _, state = line.partition(":")
+        if state.startswith("connected") and t == "ethernet":
+            kind = "wired"
+    for line in nm("-f", "ACTIVE,SIGNAL,SSID", "device", "wifi", "list", "--rescan", "no").splitlines():
+        parts = line.split(":", 2)
+        if len(parts) == 3 and parts[0] == "yes":
+            kind, signal, ssid = "wifi", int(parts[1] or 0), parts[2].replace("\\:", ":")
+            break
+    return {"ok": True, "kind": kind, "ssid": ssid, "signal": signal, "connectivity": conn}
+
+
 def listen():
     """Long-lived connection from the add-on: pass on special keys and notices as they arrive."""
     import select, time
@@ -186,6 +209,8 @@ def main():
     elif action == "camera_retry":
         subprocess.Popen(["sudo", "-n", "/usr/bin/systemctl", "restart", "eagle-facetime-firmware.service"])
         send({"ok": True})
+    elif action == "network":
+        send(network())
     elif action == "battery":
         send(battery())
     elif action == "security_status":

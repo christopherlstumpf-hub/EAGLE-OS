@@ -42,6 +42,19 @@
   .batt-bolt { color:var(--green); font-weight:800; }
   .battery { justify-content:center; }
 
+  .status-row { display:flex; gap:18px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .status-row .battery { margin-top:0; }
+  .wifi { display:flex; align-items:center; gap:8px; background:transparent; border:0; padding:4px 8px; border-radius:8px;
+    color:var(--dim); font:inherit; font-size:14px; cursor:pointer; }
+  .wifi:hover, .wifi:focus { background:#1b1b1b; color:var(--text); outline:none; }
+  .wifi svg { width:20px; height:16px; flex:none; }
+  .wifi .b { fill:#3a3a3a; }
+  .wifi .b.on { fill:var(--text); }
+  .wifi.good .b.on { fill:var(--green); }
+  .wifi.warn .b.on { fill:#e8b33a; }
+  .wifi.off { color:var(--red); }
+  .wifi.off .b { fill:#552222; }
+  .wifi .name { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
   .notes { flex:1 1 380px; max-width:440px; min-width:280px; background:var(--panel); border:1px solid var(--grey); border-radius:14px;
     display:flex; flex-direction:column; min-height:0; max-height:min(420px, 56vh); }
   .notes-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid #2a2a2a; }
@@ -119,7 +132,10 @@
     <section class="clock-card" aria-label="Clock">
       <svg id="analog" viewBox="0 0 200 200" role="img" aria-label="Clock"></svg>
       <div id="date"></div>
-      <div id="battery" class="battery hidden" role="status"></div>
+      <div class="status-row">
+        <button type="button" id="wifi" class="wifi" data-eagle-action="wifi" title="Wi-Fi and network" hidden></button>
+        <div id="battery" class="battery hidden" role="status"></div>
+      </div>
     </section>
     <section class="notes" aria-label="Notifications">
       <div class="notes-head"><h2>Notifications<span class="count" id="note-count" hidden></span></h2><a id="clear-all" role="button" tabindex="0" hidden>Clear all</a></div>

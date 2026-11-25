@@ -104,7 +104,7 @@ If you're running straight from the stick or card (Run EAGLE-OS), updates are lo
 ## Start page (the EAGLE tab)
 
 The **EAGLE tab** is always the first tab: pinned, it can't be closed or moved (if it's closed anyway it comes straight back), and anything typed into it opens in a new tab. It has no buttons, just:
-- an **analog clock** with the date and time, and the **battery** (laptops) under it;
+- an **analog clock** with the date and time, and under it a small **Wi-Fi meter** (signal bars, network name and signal %, or "No internet", "Sign-in needed", "Not connected"; click it for the Wi-Fi screen) and the **battery** (laptops);
 - **Notifications**: new Gmail email (when signed in to Gmail in the browser), unread counts that sites show in their tabs (like "(3) Facebook"), calendar events starting within the hour, antivirus finds, installed updates, low battery and **Install EAGLE-OS** when running from the stick. Click one to open it, ✕ to dismiss, or **Clear all**;
 - the **month calendar** on the right, with today's events and what's coming up.
 "by Stumpf Technology" is at the bottom and the version (for example *EAGLE-OS · Build 48*) in the lower right corner. The default time zone is US Eastern; change it under **Date and time**.

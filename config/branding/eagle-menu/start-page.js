@@ -61,6 +61,48 @@ browser.runtime.onMessage.addListener((msg) => {
   return undefined;
 });
 
+// ---------- Wi-Fi meter (click: Wi-Fi screen) ----------
+function showNetwork(n) {
+  const el = document.getElementById("wifi");
+  if (!n || !n.ok) { el.hidden = true; return; }
+  el.hidden = false;
+  let bars = 0, cls = "", name = "", state = "";
+  const online = n.connectivity === "full";
+  if (n.kind === "wifi") {
+    const sig = n.signal || 0;
+    bars = sig >= 75 ? 4 : sig >= 50 ? 3 : sig >= 25 ? 2 : 1;
+    name = n.ssid || "Wi-Fi";
+    state = online ? "" : n.connectivity === "portal" ? "Sign-in needed" : "No internet";
+    cls = online ? (bars >= 2 ? "good" : "warn") : "warn";
+  } else if (n.kind === "wired") {
+    bars = 4; name = "Wired"; state = online ? "" : "No internet"; cls = online ? "good" : "warn";
+  } else {
+    bars = 0; name = ""; state = "Not connected"; cls = "off";
+  }
+  el.className = "wifi " + cls;
+  el.textContent = "";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 20 16");
+  for (let i = 0; i < 4; i++) {
+    const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const h = 4 + i * 4;
+    r.setAttribute("x", i * 5); r.setAttribute("y", 16 - h); r.setAttribute("width", 4); r.setAttribute("height", h); r.setAttribute("rx", 1);
+    r.setAttribute("class", "b" + (i < bars ? " on" : ""));
+    svg.appendChild(r);
+  }
+  el.appendChild(svg);
+  if (name) { const s = document.createElement("span"); s.className = "name"; s.textContent = name; el.appendChild(s); }
+  const st = document.createElement("span");
+  st.textContent = state ? (name ? "· " : "") + state : (n.kind === "wifi" ? "· " + (n.signal || 0) + "%" : "· Online");
+  el.appendChild(st);
+  el.title = n.kind === "wifi" ? `Wi-Fi: ${name}, signal ${n.signal}%${state ? ", " + state : ", online"}` : (state || "Online") + " · click for Wi-Fi and network";
+}
+async function checkNetwork() { showNetwork(await eagle("network")); }
+checkNetwork();
+setInterval(checkNetwork, 15000);
+window.addEventListener("online", checkNetwork);
+window.addEventListener("offline", checkNetwork);
+
 // ---------- Analog clock + date ----------
 const SVGNS = "http://www.w3.org/2000/svg";
 function svg(tag, attrs, parent) {
