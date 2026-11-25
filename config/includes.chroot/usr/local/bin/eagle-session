@@ -115,15 +115,27 @@ if [ ! -f "$CONF/setup-done" ] || ! nm-online --quiet --timeout=15; then
   screen /usr/local/bin/eagle-setup --first-run
 fi
 
+# Signed in with the PIN at the sign-in screen: not locked
+rm -f "$CONF/locked"
+
 while true; do
   start=$SECONDS
   run_app /usr/local/bin/eagle-browser
+  # Closed while the screen was locked: the PIN first ("Switch person" ends the session)
+  if [ -f "$CONF/locked" ]; then
+    screen /usr/local/bin/eagle-setup --unlock
+    [ -f "$CONF/locked" ] && { rm -f "$CONF/locked" "$REQUEST"; exit 0; }
+  fi
   if [ -f "$REQUEST" ]; then
     action=$(head -n1 "$REQUEST"); rm -f "$REQUEST"
+    # "Switch person": end this session; the sign-in screen comes back
+    [ "$action" = logout ] && exit 0
     screen /usr/local/bin/eagle-setup --action "$action"
+    [ -f "$CONF/logout" ] && { rm -f "$CONF/logout"; exit 0; }
   else
     # Firefox was closed (or crashed): show the EAGLE menu, then reopen Firefox.
     screen /usr/local/bin/eagle-setup --menu
+    [ -f "$CONF/logout" ] && { rm -f "$CONF/logout"; exit 0; }
   fi
   # Never spin in a tight loop if something keeps failing straight away.
   [ $((SECONDS - start)) -lt 3 ] && sleep 3

@@ -1,11 +1,15 @@
 # The EAGLE menu may run the updater, the installer, GParted, the antivirus and date/time settings, and nothing else, as root.
 # (The installer only works while EAGLE-OS is running from the USB stick / card.)
-kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-update
-kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-install
-kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-gparted
-kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-security
-kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-datetime
+%eagle ALL=(root) NOPASSWD: /usr/local/sbin/eagle-update
+%eagle ALL=(root) NOPASSWD: /usr/local/sbin/eagle-install
+%eagle ALL=(root) NOPASSWD: /usr/local/sbin/eagle-gparted
+%eagle ALL=(root) NOPASSWD: /usr/local/sbin/eagle-security
+%eagle ALL=(root) NOPASSWD: /usr/local/sbin/eagle-datetime
 # Camera test page: try the Mac camera setup again
-kiosk ALL=(root) NOPASSWD: /usr/bin/systemctl restart eagle-facetime-firmware.service
-kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-printers
-kiosk ALL=(root) NOPASSWD: /usr/local/sbin/eagle-chrome
+%eagle ALL=(root) NOPASSWD: /usr/bin/systemctl restart eagle-facetime-firmware.service
+%eagle ALL=(root) NOPASSWD: /usr/local/sbin/eagle-printers
+%eagle ALL=(root) NOPASSWD: /usr/local/sbin/eagle-chrome
+# People (accounts): the sign-in screen sets up the first person and adds people with the
+# owner's PIN; a signed-in person changes their PIN or (the owner) removes someone.
+eaglegreet ALL=(root) NOPASSWD: /usr/local/sbin/eagle-accounts
+%eagle ALL=(root) NOPASSWD: /usr/local/sbin/eagle-accounts

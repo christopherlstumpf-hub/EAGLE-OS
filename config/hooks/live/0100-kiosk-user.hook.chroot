@@ -8,6 +8,16 @@ if ! id kiosk >/dev/null 2>&1; then
 fi
 passwd --lock kiosk
 
+# People (accounts) on installed PCs: "eagle" may use the EAGLE menu's tools, "eagle-people" are
+# the accounts on the sign-in screen, "eagle-owner" may add and remove people.
+for g in eagle eagle-people eagle-owner; do getent group "$g" >/dev/null || groupadd "$g"; done
+usermod -aG eagle kiosk
+# The sign-in screen's own user (installed PCs): draws the screen, nothing else
+if ! id eaglegreet >/dev/null 2>&1; then
+  useradd --system --create-home --home-dir /var/lib/eaglegreet --shell /usr/sbin/nologin eaglegreet
+fi
+for group in video input render; do getent group "$group" >/dev/null && usermod -aG "$group" eaglegreet; done
+
 for group in video audio input render netdev; do
   if getent group "$group" >/dev/null; then
     usermod -aG "$group" kiosk
@@ -16,7 +26,8 @@ done
 
 chmod 0755 /usr/local/bin/eagle-session /usr/local/bin/eagle-browser /usr/local/bin/eagle-setup /usr/local/sbin/eagle-update
 chmod 0440 /etc/sudoers.d/eagle-update
-chmod 0755 /usr/local/sbin/eagle-install /usr/local/sbin/eagle-gparted /usr/local/sbin/eagle-datetime /usr/local/lib/eagle/eagle-native /usr/local/lib/eagle/eagle-notifyd
+chmod 0755 /usr/local/sbin/eagle-install /usr/local/sbin/eagle-gparted /usr/local/sbin/eagle-datetime /usr/local/lib/eagle/eagle-native /usr/local/lib/eagle/eagle-notifyd \
+  /usr/local/sbin/eagle-accounts /usr/local/sbin/eagle-greet /usr/local/lib/eagle/eagle-greeter /usr/local/lib/eagle/eagle-greetd-login /usr/local/bin/eagle-asuser
 # Default time zone (changeable in Date and time); automatic time on
 ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime
 echo America/New_York > /etc/timezone

@@ -1,0 +1,7 @@
+// EAGLE-OS sign-in screen: may connect to Wi-Fi (welcome setup) and restart or shut down.
+polkit.addRule(function (action, subject) {
+  if (subject.user !== "eaglegreet") return polkit.Result.NOT_HANDLED;
+  if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0) return polkit.Result.YES;
+  if (/^org\.freedesktop\.login1\.(power-off|reboot)/.test(action.id)) return polkit.Result.YES;
+  return polkit.Result.NOT_HANDLED;
+});

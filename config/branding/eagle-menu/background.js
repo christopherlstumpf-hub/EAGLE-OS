@@ -76,7 +76,14 @@ function handleMessage(msg, sender) {
       return undefined;
     case "saver-dismiss":
       activity();
-      return closeSaver();
+      if (locked) return Promise.resolve({ locked: true, name: me.name });
+      return closeSaver().then(() => ({ locked: false }));
+    case "unlock": return unlockWith(msg.pin);
+    case "lock-now": return lockNow();
+    case "switch-person":
+      return browser.runtime.sendNativeMessage("eagle", { action: "logout" }).catch(() => null);
+    case "get-person":
+      return meReady.then(() => me);
     case "saver-preview":
       return openSaver(true);
     case "cal-refresh":
@@ -114,15 +121,70 @@ function handleMessage(msg, sender) {
 browser.tabs.onActivated.addListener((info) => { if (!ours() && !(saver && info.tabId === saver.tabId)) activity(); });
 browser.tabs.onCreated.addListener((tab) => { if (!ours() && !(saver && tab.id === saver.tabId)) activity(); });
 browser.tabs.onRemoved.addListener((tabId) => {
-  if (saver && tabId === saver.tabId) { const s = saver; saver = null; restoreWindow(s); activity(); saveState(true); }
+  if (saver && tabId === saver.tabId) {
+    const s = saver; saver = null; saveState(true);
+    if (locked) { openSaver(false); return; }          // closed while locked: straight back
+    restoreWindow(s); activity();
+  }
 });
 
 async function restoreWindow(s) {
   try { await browser.windows.update(s.windowId, { state: s.prevState === "fullscreen" ? "fullscreen" : "maximized" }); } catch (e) { /* closed */ }
 }
 
+// ---------- Lock (installed PCs, a person with a PIN) ----------
+// The screensaver doubles as the lock: after it, or with E menu → Lock now, the PIN is needed.
+// While locked, other tabs and windows can't be brought up.
+let me = { person: false, owner: false, name: "" };
+let locked = false;
+const meReady = browser.runtime.sendNativeMessage("eagle", { action: "status" })
+  .then((s) => { if (s && s.ok) me = { person: !!s.person, owner: !!s.owner, name: s.name || "" }; }, () => {});
+(async () => {
+  try { locked = !!(await browser.storage.session.get({ locked: false })).locked; } catch (e) { /* none */ }
+})();
+async function setLocked(v) {
+  locked = v;
+  try { await browser.storage.session.set({ locked: v }); } catch (e) { /* ignore */ }
+}
+async function lockNow() {
+  await meReady;
+  if (!me.person) return { ok: false };
+  await browser.runtime.sendNativeMessage("eagle", { action: "lock" }).catch(() => {});
+  await setLocked(true);
+  if (!saver) await openSaver(false);
+  return { ok: true };
+}
+async function unlockWith(pin) {
+  const r = await browser.runtime.sendNativeMessage("eagle", { action: "unlock", pin: String(pin || "") }).catch(() => null);
+  if (!r || !r.ok) return { ok: false };
+  await setLocked(false);
+  activity();
+  await closeSaver();
+  return { ok: true };
+}
+// Locked: keep the lock in front
+browser.tabs.onActivated.addListener((info) => {
+  if (locked && saver && info.tabId !== saver.tabId) browser.tabs.update(saver.tabId, { active: true }).catch(() => {});
+});
+browser.tabs.onCreated.addListener((tab) => {
+  if (locked && saver && tab.id !== saver.tabId) browser.tabs.remove(tab.id).catch(() => {});
+});
+browser.windows.onCreated.addListener((w) => {
+  if (locked && saver && w.id !== saver.windowId) browser.windows.remove(w.id).catch(() => {});
+});
+browser.tabs.onUpdated.addListener((tabId, info) => {
+  if (locked && saver && tabId === saver.tabId && info.url && !info.url.startsWith(SAVER)) browser.tabs.update(tabId, { url: SAVER }).catch(() => {});
+});
+
 async function openSaver(preview) {
   if (saver) return;
+  if (!preview) {
+    await meReady;
+    if (me.person && !locked) {
+      await setLocked(true);
+      browser.runtime.sendNativeMessage("eagle", { action: "lock" }).catch(() => {});
+    }
+  }
   suppress();
   let win, active;
   try { win = await browser.windows.getLastFocused(); } catch (e) { return; }
@@ -642,6 +704,15 @@ function webKind(site, title, text) {
   if (/calendar|reminder|meeting|event/.test(all)) return "calendar";
   return "message";
 }
+
+// Right after the welcome setup on an installed PC: open Google sign-in once, so Gmail,
+// Calendar, Drive, Docs, Photos, Meet and YouTube are all signed in together.
+setTimeout(async () => {
+  const r = await browser.runtime.sendNativeMessage("eagle", { action: "welcome_google" }).catch(() => null);
+  if (!r || !r.open) return;
+  await tabsReady;
+  browser.tabs.create({ url: "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmail.google.com%2F", active: true }).catch(() => {});
+}, 4000);
 
 // ---------- Connect Google Calendar: no hunting for the secret address ----------
 // "Connect Google Calendar" opens Google Calendar's settings; gcal.js (on that site) guides the

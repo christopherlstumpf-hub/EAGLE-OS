@@ -20,6 +20,18 @@
   .hint { position:absolute; top:24px; left:0; right:0; text-align:center; font-size:15px; opacity:0;
     transition: opacity 1s; text-shadow:0 1px 8px rgba(0,0,0,.8); }
   .hint.show { opacity:.85; }
+  .lock { position:absolute; inset:0; display:none; place-items:center; background:rgba(0,0,0,.55); cursor:default; }
+  .lock.show { display:grid; }
+  .lock form { background:rgba(17,17,17,.92); border:2px solid var(--orange, #ff7a00); border-radius:16px; padding:26px 30px;
+    width:340px; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,.6); }
+  .lock h2 { margin:0 0 4px; font-size:22px; } .lock p { margin:0 0 16px; color:#bbb; font-size:14px; }
+  .lock input { width:100%; box-sizing:border-box; font:inherit; font-size:22px; letter-spacing:.3em; text-align:center;
+    padding:10px; border-radius:10px; border:1px solid #444; background:#000; color:#fff; outline:none; }
+  .lock input:focus { border-color:var(--orange, #ff7a00); }
+  .lock .row { display:flex; gap:10px; margin-top:14px; }
+  .lock button { flex:1; font:inherit; font-weight:700; font-size:15px; padding:11px; border-radius:10px; border:0; cursor:pointer; }
+  .lock .go { background:var(--orange, #ff7a00); color:#000; } .lock .sw { background:#333; color:#fff; }
+  .lock .err { color:#ff6b5e; min-height:18px; margin-top:10px; font-size:14px; }
 </style>
 </head>
 <body>
@@ -28,6 +40,12 @@
   <div class="info"><div id="time"></div><div id="date"></div><div class="bar"></div></div>
   <img class="logo" src="logo.png" alt="">
   <div class="hint" id="hint">Move the mouse or press any key to return</div>
+  <div class="lock" id="lock"><form id="lockform" autocomplete="off">
+    <h2 id="lockname">Locked</h2><p>Type your PIN to unlock</p>
+    <input type="password" id="pin" inputmode="numeric" maxlength="32" aria-label="PIN">
+    <div class="err" id="lockerr"></div>
+    <div class="row"><button type="submit" class="go">Unlock</button><button type="button" class="sw" id="switch">Switch person</button></div>
+  </form></div>
   <script src="shim.js"></script>
   <script src="theme.js"></script>
   <script src="screensaver.js"></script>

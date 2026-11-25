@@ -451,6 +451,81 @@ printers_menu() {
 is_live() { [ -d /run/live/medium ]; }
 install_eagle() { sudo -n /usr/local/sbin/eagle-install; }
 
+# ---------- People (accounts on an installed PC) ----------
+is_person() { id -nG | tr ' ' '\n' | grep -qx eagle-people; }
+is_owner() { id -nG | tr ' ' '\n' | grep -qx eagle-owner; }
+my_name() { getent passwd "$USER" | cut -d: -f5 | cut -d, -f1; }
+people_names() { local p; for p in $(getent group eagle-people | cut -d: -f4 | tr ',' ' '); do printf '%s %s\n' "$p" "$(getent passwd "$p" | cut -d: -f5 | cut -d, -f1)"; done; }
+
+accounts_run() {  # args...; stdin: PINs. Shows the error, returns its code
+  local out rc; out=$(sudo -n /usr/local/sbin/eagle-accounts "$@" 2>&1 >/dev/null); rc=$?
+  [ $rc -ne 0 ] && whiptail --title "$TITLE · People" --msgbox "${out:-Something went wrong.}" 10 $W
+  return $rc
+}
+
+new_pin() {
+  local p1 p2
+  while true; do
+    p1=$(whiptail --title "$TITLE · People" --passwordbox "New PIN: at least 4 numbers or letters." 9 $W 3>&1 1>&2 2>&3) || return 1
+    p2=$(whiptail --title "$TITLE · People" --passwordbox "Type the same PIN again." 9 $W 3>&1 1>&2 2>&3) || return 1
+    [ "$p1" = "$p2" ] && [ "${#p1}" -ge 4 ] && { printf '%s' "$p1"; return 0; }
+    whiptail --title "$TITLE · People" --msgbox "Those PINs don't match or are shorter than 4. Try again." 8 $W
+  done
+}
+
+accounts_menu() {
+  local T="$TITLE · People" items choice old new name pin opin u list
+  if ! is_person; then
+    whiptail --title "$T" --msgbox "People and PINs are set up after EAGLE-OS is installed on this PC.\n\nOn its first start it asks your name and a PIN; after that, everyone in the family can have their own account." 11 $W
+    return
+  fi
+  while true; do
+    list=$(people_names | awk '{ $1=""; sub(/^ /, ""); print "  " $0 }')
+    items=(pin "Change my PIN" switch "Switch person")
+    is_owner && items+=(add "Add a person" remove "Remove a person")
+    items+=(back "Back")
+    choice=$(whiptail --title "$T" --menu "Signed in: $(my_name)\n\nPeople on this PC:\n$list" 20 $W 7 "${items[@]}" 3>&1 1>&2 2>&3) || return
+    case "$choice" in
+      pin)
+        old=$(whiptail --title "$T" --passwordbox "Your current PIN." 8 $W 3>&1 1>&2 2>&3) || continue
+        new=$(new_pin) || continue
+        printf '%s\n%s\n' "$old" "$new" | accounts_run pin && whiptail --title "$T" --msgbox "Your PIN is changed." 7 $W ;;
+      switch) touch "$CONF/logout"; exit 0 ;;
+      add)
+        name=$(whiptail --title "$T" --inputbox "The new person's first name?" 9 $W 3>&1 1>&2 2>&3) || continue
+        [ -n "$name" ] || continue
+        whiptail --title "$T" --msgbox "Now $name chooses a PIN." 7 $W
+        pin=$(new_pin) || continue
+        opin=$(whiptail --title "$T" --passwordbox "$(my_name), type your PIN to add $name." 8 $W 3>&1 1>&2 2>&3) || continue
+        printf '%s\n%s\n%s\n' "$pin" "$USER" "$opin" | accounts_run add "$name" \
+          && whiptail --title "$T" --msgbox "$name is added. They pick their name on the sign-in screen (Switch person)." 9 $W ;;
+      remove)
+        items=(); while read -r u name; do [ "$u" = "$USER" ] || items+=("$u" "$name"); done < <(people_names)
+        [ ${#items[@]} -gt 0 ] || { whiptail --title "$T" --msgbox "There's nobody else to remove." 7 $W; continue; }
+        items+=(back "Back")
+        u=$(whiptail --title "$T" --menu "Remove whom? Their tabs, sign-ins and Downloads are deleted." 16 $W 6 "${items[@]}" 3>&1 1>&2 2>&3) || continue
+        [ "$u" = back ] && continue
+        whiptail --title "$T" --yesno "Remove $(getent passwd "$u" | cut -d: -f5 | cut -d, -f1) and everything in their account?\n\nThis can't be undone." 10 $W --defaultno || continue
+        opin=$(whiptail --title "$T" --passwordbox "Type your PIN to confirm." 8 $W 3>&1 1>&2 2>&3) || continue
+        printf '%s\n' "$opin" | accounts_run remove "$u" && whiptail --title "$T" --msgbox "Removed." 7 $W ;;
+      back|*) return ;;
+    esac
+  done
+}
+
+# Locked screen, when the browser was closed while locked: the PIN, or switch person
+unlock_screen() {
+  local pin choice
+  while true; do
+    choice=$(whiptail --title "$TITLE · Locked" --menu "Locked: $(my_name)" 12 $W 3 unlock "Type my PIN" switch "Switch person" 3>&1 1>&2 2>&3) || continue
+    [ "$choice" = switch ] && exit 0
+    pin=$(whiptail --title "$TITLE · Locked" --passwordbox "$(my_name), type your PIN." 8 $W 3>&1 1>&2 2>&3) || continue
+    if printf '%s\0' "$pin" | /sbin/unix_chkpwd "$USER" nullok >/dev/null 2>&1; then rm -f "$CONF/locked"; exit 0; fi
+    sleep 2; whiptail --title "$TITLE · Locked" --msgbox "That PIN isn't right." 7 $W
+  done
+}
+[ "$MODE_ARG" = "--unlock" ] && unlock_screen
+
 # ---------- Main ----------
 # Let the full-screen terminal finish sizing itself before drawing (keeps boxes centred)
 prev=""; for _ in $(seq 1 15); do cur="$(tput cols 2>/dev/null)x$(tput lines 2>/dev/null)"; [ "$cur" = "$prev" ] && break; prev=$cur; sleep 0.2; done
@@ -466,6 +541,7 @@ if [ "$MODE_ARG" = "--action" ]; then
     printers) printers_menu ;;
     updates) updates_menu ;;
     install) install_eagle ;;
+    accounts) accounts_menu ;;
     *)       MODE_ARG="--menu" ;;
   esac
   [ "$MODE_ARG" = "--action" ] && exit 0
@@ -480,6 +556,7 @@ while true; do
   if [ "$MODE_ARG" = "--menu" ]; then
     [ "$(cat /etc/eagle/variant 2>/dev/null)" = lite ] || items+=(browser "Web browser (Firefox or Google Chrome)")
     items+=(printers "Printers" security "Security (antivirus)" disks "Disks and partitions (GParted)" updates "Updates")
+    is_person && items+=(accounts "People and PINs")
   fi
   if is_live; then
     items+=(install "Install EAGLE-OS on this PC (wipes a drive)")
@@ -499,6 +576,7 @@ while true; do
     printers) printers_menu ;;
     updates)  updates_menu ;;
     install)  install_eagle ;;
+    accounts) accounts_menu ;;
     restart)  systemctl reboot; exit 0 ;;
     shutdown) systemctl poweroff; exit 0 ;;
     browse|*) touch "$CONF/setup-done"; exit 0 ;;

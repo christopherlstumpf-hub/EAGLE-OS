@@ -14,7 +14,16 @@ STATE=/var/lib/eagle/security.json
 Q=/var/lib/eagle/quarantine
 LOG=/var/log/eagle-security.log
 DB=/var/lib/clamav
-DOWNLOADS=/home/kiosk/Downloads
+# Everyone's Downloads folder (the stick has one person, "kiosk"; installed PCs one per account)
+downloads_dirs() {
+  local d u
+  for d in /home/*/; do
+    u=$(basename "$d")
+    id "$u" >/dev/null 2>&1 || continue
+    install -d -o "$u" -g "$u" "$d/Downloads" 2>/dev/null
+    printf '%s\n' "${d%/}/Downloads"
+  done
+}
 REALTIME_MIN_KB=3500000          # ~4 GB machines (some RAM is reserved by the hardware)
 
 mkdir -p /var/lib/eagle "$Q"
@@ -77,7 +86,7 @@ scan() {
   local kind=${1:-downloads} out found rc
   local paths=() extra=()
   case "$kind" in
-    downloads) mkdir -p "$DOWNLOADS"; chown kiosk:kiosk "$DOWNLOADS" 2>/dev/null; paths=("$DOWNLOADS") ;;
+    downloads) mapfile -t paths < <(downloads_dirs) ;;
     home)      paths=(/home /tmp /media /mnt) ;;
     full)      paths=(/)
                extra=(--exclude-dir='^/proc' --exclude-dir='^/sys' --exclude-dir='^/dev' --exclude-dir='^/run'
@@ -108,7 +117,7 @@ realtime_start() {
     set_state realtime false; return 0
   fi
   has_signatures || { set_state realtime false; return 0; }
-  mkdir -p "$DOWNLOADS"; chown kiosk:kiosk "$DOWNLOADS" 2>/dev/null
+  downloads_dirs >/dev/null
   systemctl start clamav-daemon.service
   for _ in $(seq 1 60); do [ -S /run/clamav/clamd.ctl ] && break; sleep 2; done
   systemctl start eagle-clamonacc.service

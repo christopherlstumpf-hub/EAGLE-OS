@@ -5,6 +5,12 @@ browser.runtime.sendNativeMessage("eagle", { action: "status" }).then((s) => {
 
 browser.runtime.sendNativeMessage("eagle", { action: "status" }).then((st) => {
   if (st && st.variant !== "lite") document.getElementById("browser-btn").classList.remove("hidden");
+  if (st && st.person) {
+    for (const el of document.querySelectorAll(".person")) el.classList.remove("hidden");
+    const who = document.createElement("small");
+    who.textContent = "Signed in: " + st.name;
+    document.querySelector("header").appendChild(who);
+  }
   if (!st || !st.version) return;
   const v = document.createElement("small");
   v.textContent = (st.variant === "lite" ? "Lite · " : "") + st.version.replace(/^build\s*/i, "Build ");
@@ -33,6 +39,8 @@ for (const b of document.querySelectorAll("button[data-action]")) {
       await browser.tabs.create({ url: browser.runtime.getURL("links.html") });
     } else if (action === "colors") {
       await browser.tabs.create({ url: browser.runtime.getURL("colors.html") });
+    } else if (action === "lock-now") {
+      await browser.runtime.sendMessage({ type: "lock-now" }).catch(() => {});
     } else if (action === "screensaver") {
       await browser.tabs.create({ url: browser.runtime.getURL("settings.html") });
     } else {

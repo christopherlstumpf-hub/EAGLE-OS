@@ -76,10 +76,50 @@ setInterval(tick, 10000);
 // ---- leave on input ----
 const opened = Date.now();
 let leaving = false;
+let lockShown = false;
 function leave() {
-  if (leaving || Date.now() - opened < 1500) return;   // ignore input right as it opens
+  if (lockShown || leaving || Date.now() - opened < 1500) return;   // ignore input right as it opens
   leaving = true;
-  browser.runtime.sendMessage({ type: "saver-dismiss" }).catch(() => window.close());
+  browser.runtime.sendMessage({ type: "saver-dismiss" }).then((r) => {
+    if (r && r.locked) showLock(r.name); else leaving = false;
+  }).catch(() => window.close());
+}
+
+// ---- locked (a person with a PIN): the PIN, or switch person ----
+let lockTimer = null;
+function showLock(name) {
+  lockShown = true;
+  document.body.style.cursor = "default";
+  document.getElementById("lockname").textContent = name ? "Locked: " + name : "Locked";
+  document.getElementById("lock").classList.add("show");
+  const pin = document.getElementById("pin");
+  pin.value = ""; pin.focus();
+  clearTimeout(lockTimer);
+  lockTimer = setTimeout(hideLock, 60000);            // nobody there: back to the pictures
+}
+function hideLock() {
+  lockShown = false; leaving = false;
+  document.body.style.cursor = "";
+  document.getElementById("lock").classList.remove("show");
+  document.getElementById("lockerr").textContent = "";
+}
+document.getElementById("lockform").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pin = document.getElementById("pin");
+  const err = document.getElementById("lockerr");
+  if (!pin.value) return;
+  err.textContent = "Checking…";
+  clearTimeout(lockTimer); lockTimer = setTimeout(hideLock, 60000);
+  const r = await browser.runtime.sendMessage({ type: "unlock", pin: pin.value }).catch(() => null);
+  if (r && r.ok) return;                              // the background closes this page
+  err.textContent = "That PIN isn't right.";
+  pin.value = ""; pin.focus();
+});
+document.getElementById("switch").addEventListener("click", () => {
+  browser.runtime.sendMessage({ type: "switch-person" }).catch(() => {});
+});
+for (const ev of ["keydown", "mousedown", "mousemove"]) {
+  window.addEventListener(ev, () => { if (lockShown) { clearTimeout(lockTimer); lockTimer = setTimeout(hideLock, 60000); } }, { capture: true });
 }
 let startX = null, startY = null;
 window.addEventListener("mousemove", (e) => {

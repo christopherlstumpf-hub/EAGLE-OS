@@ -1,0 +1,10 @@
+#!/bin/bash
+# EAGLE-OS: run a key action (volume, media, brightness ...) as the person signed in right now.
+# triggerhappy runs as root and calls this; on the sign-in screen the keys do nothing.
+S=$(loginctl show-seat seat0 -p ActiveSession --value 2>/dev/null)
+[ -n "$S" ] || exit 0
+U=$(loginctl show-session "$S" -p Name --value 2>/dev/null)
+CLASS=$(loginctl show-session "$S" -p Class --value 2>/dev/null)
+[ -n "$U" ] && [ "$CLASS" = user ] || exit 0
+UID_=$(id -u "$U") || exit 0
+exec runuser -u "$U" -- env XDG_RUNTIME_DIR="/run/user/$UID_" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID_/bus" "$@"

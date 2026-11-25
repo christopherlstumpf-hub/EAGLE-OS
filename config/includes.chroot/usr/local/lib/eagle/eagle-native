@@ -6,9 +6,10 @@ Actions that need a full-screen EAGLE screen (Wi-Fi, Display, Sound, Disks/GPart
 Updates, Install, Menu) are handed to the EAGLE session: the request is written to a file and
 Firefox is closed; the session opens that screen, then reopens Firefox.
 """
-import json, os, struct, subprocess, sys
+import json
+import time, os, struct, subprocess, sys
 
-SCREENS = {"wifi", "display", "sound", "datetime", "browser", "printers", "disks", "security", "updates", "install", "menu"}
+SCREENS = {"wifi", "display", "sound", "datetime", "browser", "printers", "disks", "security", "updates", "install", "menu", "accounts", "logout"}
 REQUEST = os.path.expanduser("~/.config/eagle/request")
 SHARED = os.path.expanduser("~/.config/eagle/addon-settings.json")   # same settings in Firefox and Chrome
 
@@ -160,6 +161,32 @@ def listen():
                 f.write(str(seen))
 
 
+LOCKED = os.path.expanduser("~/.config/eagle/locked")
+
+
+def person():
+    # An account on an installed PC (with a PIN), or the stick's built-in "kiosk" (no PIN)
+    import grp, pwd
+    me = pwd.getpwuid(os.getuid())
+    groups = {g.gr_name for g in grp.getgrall() if me.pw_name in g.gr_mem}
+    is_person = "eagle-people" in groups
+    return {"person": is_person, "owner": "eagle-owner" in groups,
+            "name": (me.pw_gecos.split(",")[0] or me.pw_name) if is_person else ""}
+
+
+def check_pin(pin):
+    if not pin or len(pin) > 64 or "\0" in pin:
+        return False
+    import pwd
+    user = pwd.getpwuid(os.getuid()).pw_name
+    try:
+        r = subprocess.run(["/sbin/unix_chkpwd", user, "nullok"], input=(pin + "\0").encode(),
+                           capture_output=True, timeout=15)
+        return r.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def main():
     msg = read_msg()
     action = str(msg.get("action", ""))
@@ -179,7 +206,33 @@ def main():
                 version = val.strip('"')
             elif key == "DATE":
                 built = val.strip('"')
-        send({"ok": True, "live": live, "variant": variant, "version": version, "built": built})
+        send({"ok": True, "live": live, "variant": variant, "version": version, "built": built, **person()})
+    elif action == "welcome_google":
+        # once, right after the welcome setup: open Google sign-in
+        welcome = os.path.expanduser("~/.config/eagle/welcome-google")
+        there = os.path.exists(welcome)
+        try:
+            os.remove(welcome)
+        except OSError:
+            pass
+        send({"ok": True, "open": there})
+    elif action == "lock":
+        # remembered, so the PIN is asked even if the browser is closed while locked
+        if person()["person"]:
+            os.makedirs(os.path.dirname(LOCKED), exist_ok=True)
+            open(LOCKED, "w").close()
+        send({"ok": True, "locked": person()["person"]})
+    elif action == "unlock":
+        pin = str(msg.get("pin", ""))
+        ok = check_pin(pin)
+        if ok:
+            try:
+                os.remove(LOCKED)
+            except OSError:
+                pass
+        else:
+            time.sleep(2)
+        send({"ok": ok})
     elif action == "settings_load":
         try:
             with open(SHARED) as f:

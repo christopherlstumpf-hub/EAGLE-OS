@@ -78,6 +78,15 @@ To carry EAGLE-OS with you, install it onto a second USB stick or microSD card.
 
 After that, EAGLE-OS goes straight to Firefox on every start.
 
+## People and PINs (installed PCs)
+From the USB stick EAGLE-OS starts straight up, with no account or PIN, so trying it stays quick. **Once it's installed on the PC:**
+
+- **First start: the welcome setup.** Your first name, a PIN (4 or more numbers or letters, typed twice), and Wi-Fi if it isn't connected yet. You're the **owner**. EAGLE then opens Google sign-in: sign in once and Gmail, Calendar, Drive, Docs, Photos, Meet and YouTube are all ready.
+- **Every start after that: the sign-in screen.** Pick your name, type your PIN. *+ Add a person* adds someone (needs the owner's PIN); *Restart* and *Shut down* are there too.
+- **Each person has their own space:** their own Google sign-in, tabs, calendars, colours, notifications and Downloads.
+- **Locked after the screensaver.** Coming back from the screensaver asks for your PIN (after a minute with nobody typing, the pictures come back). **Switch person** on the lock goes back to the sign-in screen. E menu → **Lock now** locks straight away.
+- **E menu → People and PINs:** change your PIN, switch person; the owner adds and removes people (removing someone deletes their tabs, sign-ins and Downloads).
+
 ## The EAGLE menu
 Click the orange **E** button in Firefox's toolbar, or close Firefox, to open the EAGLE menu:
 - **Start browsing**

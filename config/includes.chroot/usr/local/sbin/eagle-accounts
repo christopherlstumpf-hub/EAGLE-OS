@@ -1,0 +1,102 @@
+#!/bin/bash
+# EAGLE-OS people (accounts) on an installed PC. Run through sudo by the sign-in screen
+# (user eaglegreet) or by a signed-in person. PINs are read from stdin, one per line.
+#
+#   eagle-accounts first NAME           first person = the owner (sign-in screen, only while nobody exists)
+#                                        stdin: PIN
+#   eagle-accounts add NAME             stdin: new PIN, owner's user name, owner's PIN
+#   eagle-accounts pin                  change your own PIN; stdin: old PIN, new PIN
+#   eagle-accounts remove USER          owner only; stdin: owner's PIN
+#
+# Prints the new user name for first/add. Exit 0 ok, 2 wrong PIN, 3 not allowed, 1 other error.
+set -u
+export LC_ALL=C
+CALLER=${SUDO_USER:-root}
+
+people() { getent group eagle-people | cut -d: -f4 | tr ',' '\n' | grep -v '^$'; }
+is_owner() { id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx eagle-owner; }
+die() { echo "$2" >&2; exit "$1"; }
+read_pin() { local p; IFS= read -r p || p=""; printf '%s' "$p"; }
+pin_ok() { [ "${#1}" -ge 4 ] && [ "${#1}" -le 32 ] && [[ "$1" != *:* ]]; }
+check_pin() {  # user pin
+  printf '%s\0' "$2" | /sbin/unix_chkpwd "$1" nullok >/dev/null 2>&1 && return 0
+  sleep 2; return 1
+}
+
+slug() {
+  local s base n=2
+  s=$(printf '%s' "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9')
+  s=${s:0:16}
+  [[ "$s" =~ ^[a-z] ]] || s="p${s}"
+  [ "${#s}" -ge 2 ] || s="person"
+  base=$s
+  while getent passwd "$s" >/dev/null || getent group "$s" >/dev/null; do s="${base:0:14}$n"; n=$((n + 1)); done
+  printf '%s' "$s"
+}
+
+make_person() {  # name pin owner(0/1) welcome(0/1)
+  local name=$1 pin=$2 owner=$3 welcome=$4 u groups g
+  name=$(printf '%s' "$name" | tr -d ':,\n' | cut -c1-30 | sed 's/^ *//; s/ *$//')
+  [ -n "$name" ] || die 1 "Please type a name."
+  pin_ok "$pin" || die 1 "The PIN needs 4 to 32 numbers or letters."
+  u=$(slug "$name")
+  groups=eagle,eagle-people
+  [ "$owner" = 1 ] && groups="$groups,eagle-owner"
+  for g in video audio input render netdev lpadmin plugdev; do getent group "$g" >/dev/null && groups="$groups,$g"; done
+  useradd --create-home --shell /bin/bash --comment "$name" --groups "$groups" "$u" || die 1 "Couldn't create the account."
+  printf '%s:%s\n' "$u" "$pin" | chpasswd || { userdel -r "$u" 2>/dev/null; die 1 "Couldn't set the PIN."; }
+  # Display and sound choices made while running from the stick (copied by the installer)
+  install -d -o "$u" -g "$u" "/home/$u/.config" "/home/$u/.config/eagle" "/home/$u/Downloads"
+  for f in display startup-sound-off; do
+    [ -f "/home/kiosk/.config/eagle/$f" ] && install -o "$u" -g "$u" -m 0644 "/home/kiosk/.config/eagle/$f" "/home/$u/.config/eagle/$f"
+  done
+  if [ "$welcome" = 1 ]; then
+    touch "/home/$u/.config/eagle/setup-done" "/home/$u/.config/eagle/welcome-google"
+    chown "$u:$u" "/home/$u/.config/eagle/setup-done" "/home/$u/.config/eagle/welcome-google"
+  fi
+  chmod 0700 "/home/$u"
+  # Real-time antivirus watches each person's Downloads
+  if [ -f /etc/clamav/clamd.conf ] && ! grep -qx "OnAccessIncludePath /home/$u/Downloads" /etc/clamav/clamd.conf; then
+    echo "OnAccessIncludePath /home/$u/Downloads" >> /etc/clamav/clamd.conf
+    systemctl is-active --quiet eagle-clamonacc.service && systemctl restart clamav-daemon.service eagle-clamonacc.service
+  fi
+  echo "$(date -Iseconds) added $u ($name) by $CALLER" >> /var/log/eagle-accounts.log
+  printf '%s\n' "$u"
+}
+
+cmd=${1:-}
+case "$cmd" in
+  first)
+    [ "$CALLER" = eaglegreet ] || [ "$CALLER" = root ] || die 3 "Only the sign-in screen can do that."
+    [ -z "$(people)" ] || die 3 "EAGLE-OS already has an owner."
+    pin=$(read_pin)
+    make_person "${2:-}" "$pin" 1 1
+    ;;
+  add)
+    pin=$(read_pin); IFS= read -r owner || owner=""; opin=$(read_pin)
+    is_owner "$owner" || die 3 "Only the owner can add a person."
+    check_pin "$owner" "$opin" || die 2 "That isn't the owner's PIN."
+    make_person "${2:-}" "$pin" 0 0
+    ;;
+  pin)
+    [ "$CALLER" != root ] && id -nG "$CALLER" | tr ' ' '\n' | grep -qx eagle-people || die 3 "Not an EAGLE account."
+    old=$(read_pin); new=$(read_pin)
+    check_pin "$CALLER" "$old" || die 2 "That isn't your current PIN."
+    pin_ok "$new" || die 1 "The PIN needs 4 to 32 numbers or letters."
+    printf '%s:%s\n' "$CALLER" "$new" | chpasswd || die 1 "Couldn't change the PIN."
+    echo "$(date -Iseconds) $CALLER changed their PIN" >> /var/log/eagle-accounts.log
+    ;;
+  remove)
+    u=${2:-}
+    is_owner "$CALLER" || die 3 "Only the owner can remove a person."
+    opin=$(read_pin)
+    check_pin "$CALLER" "$opin" || die 2 "That isn't your PIN."
+    people | grep -qx "$u" || die 1 "No such person."
+    [ "$u" != "$CALLER" ] || die 3 "You can't remove yourself."
+    loginctl terminate-user "$u" 2>/dev/null
+    userdel -r "$u" 2>/dev/null || die 1 "Couldn't remove the account."
+    sed -i "\|^OnAccessIncludePath /home/$u/Downloads\$|d" /etc/clamav/clamd.conf 2>/dev/null
+    echo "$(date -Iseconds) removed $u by $CALLER" >> /var/log/eagle-accounts.log
+    ;;
+  *) die 1 "usage: eagle-accounts first|add|pin|remove" ;;
+esac

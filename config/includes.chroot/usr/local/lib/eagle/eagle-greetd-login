@@ -1,0 +1,50 @@
+#!/usr/bin/python3
+# EAGLE-OS sign-in: ask greetd to sign USER in with the PIN on stdin and start the EAGLE session.
+# Exit 0 = signed in (the session starts when the sign-in screen closes), 2 = wrong PIN, 1 = error.
+import json, os, socket, struct, sys
+
+def talk(sock, msg):
+    data = json.dumps(msg).encode()
+    sock.sendall(struct.pack("=I", len(data)) + data)
+    head = b""
+    while len(head) < 4:
+        chunk = sock.recv(4 - len(head))
+        if not chunk:
+            raise ConnectionError("greetd closed the connection")
+        head += chunk
+    n = struct.unpack("=I", head)[0]
+    body = b""
+    while len(body) < n:
+        chunk = sock.recv(n - len(body))
+        if not chunk:
+            raise ConnectionError("greetd closed the connection")
+        body += chunk
+    return json.loads(body)
+
+def main():
+    user = sys.argv[1]
+    pin = sys.stdin.readline().rstrip("\n")
+    s = socket.socket(socket.AF_UNIX)
+    s.connect(os.environ["GREETD_SOCK"])
+    r = talk(s, {"type": "create_session", "username": user})
+    while r.get("type") == "auth_message":
+        kind = r.get("auth_message_type")
+        answer = pin if kind in ("secret", "visible") else None
+        r = talk(s, {"type": "post_auth_message_response", "response": answer})
+    if r.get("type") != "success":
+        talk(s, {"type": "cancel_session"})
+        print(r.get("description", "sign-in failed"), file=sys.stderr)
+        return 2 if r.get("error_type") == "auth_error" else 1
+    r = talk(s, {"type": "start_session", "cmd": ["/usr/local/bin/eagle-session"], "env": []})
+    if r.get("type") != "success":
+        talk(s, {"type": "cancel_session"})
+        print(r.get("description", "couldn't start"), file=sys.stderr)
+        return 1
+    return 0
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception as e:  # noqa: BLE001
+        print(e, file=sys.stderr)
+        sys.exit(1)

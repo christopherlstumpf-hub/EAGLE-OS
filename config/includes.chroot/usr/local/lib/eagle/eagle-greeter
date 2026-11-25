@@ -1,0 +1,106 @@
+#!/bin/bash
+# EAGLE-OS sign-in screen (installed PCs). Runs as "eaglegreet" in a full-screen terminal.
+#  - Nobody set up yet: the welcome setup (your name, a PIN, Wi-Fi), then straight in.
+#  - Otherwise: pick your name, type your PIN. "Add a person" needs the owner's PIN.
+set -u
+# shellcheck source=/dev/null
+. /usr/local/lib/eagle/newt-colors.sh
+TITLE="EAGLE-OS"
+W=64
+wt() { whiptail --notags "$@" 3>&1 1>&2 2>&3; }
+msg() { whiptail --title "$TITLE" --msgbox "$1" "${2:-10}" $W; }
+
+people() { getent group eagle-people | cut -d: -f4 | tr ',' '\n' | grep -v '^$'; }
+name_of() { getent passwd "$1" | cut -d: -f5 | cut -d, -f1; }
+owners() { getent group eagle-owner | cut -d: -f4 | tr ',' '\n' | grep -v '^$'; }
+
+sign_in() {  # user pin
+  local err
+  err=$(printf '%s\n' "$2" | /usr/local/lib/eagle/eagle-greetd-login "$1" 2>&1 >/dev/null)
+  case $? in
+    0) touch "${XDG_RUNTIME_DIR:-/tmp}/eagle-greet-done"; exit 0 ;;
+    2) return 2 ;;
+    *) msg "Couldn't sign in.\n\n$err" 12; return 1 ;;
+  esac
+}
+
+ask_new_pin() {  # prints the PIN, or fails if cancelled
+  local p1 p2
+  while true; do
+    p1=$(wt --title "$TITLE · Your PIN" --passwordbox "Choose a PIN: at least 4 numbers or letters.\n\nYou'll type it to sign in and to unlock after the screensaver." 12 $W) || return 1
+    if [ "${#p1}" -lt 4 ] || [ "${#p1}" -gt 32 ]; then msg "The PIN needs 4 to 32 numbers or letters."; continue; fi
+    p2=$(wt --title "$TITLE · Your PIN" --passwordbox "Type the same PIN again." 9 $W) || return 1
+    [ "$p1" = "$p2" ] && { printf '%s' "$p1"; return 0; }
+    msg "Those PINs don't match. Let's try again."
+  done
+}
+
+ask_name() {  # prompt
+  local n
+  while true; do
+    n=$(wt --title "$TITLE" --inputbox "$1" 10 $W) || return 1
+    n=$(printf '%s' "$n" | sed 's/^ *//; s/ *$//')
+    [ -n "$n" ] && { printf '%s' "$n"; return 0; }
+  done
+}
+
+welcome() {
+  local name pin u err
+  msg "Welcome to EAGLE-OS by Stumpf Technology.\n\nLet's set it up for you. It takes about a minute: your name, a PIN, and Wi-Fi.\n\nUse the arrow keys, Tab and Enter." 13
+  name=$(ask_name "What's your first name?") || return
+  pin=$(ask_new_pin) || return
+  if ! nm-online --quiet --timeout=5; then
+    msg "Next, connect to Wi-Fi. Pick your network and type its password." 9
+    nmcli radio wifi on >/dev/null 2>&1
+    nmtui-connect
+  fi
+  if ! u=$(printf '%s\n' "$pin" | sudo -n /usr/local/sbin/eagle-accounts first "$name" 2>/tmp/eagle-greet-err); then
+    err=$(cat /tmp/eagle-greet-err 2>/dev/null); msg "Couldn't set up your account.\n\n$err" 12; return
+  fi
+  msg "All set, $name.\n\nNext, EAGLE opens Google sign-in. Sign in once and Gmail, Calendar, Drive, Docs, Photos, Meet and YouTube are all ready." 12
+  sign_in "$u" "$pin"
+}
+
+add_person() {
+  local owner pin opin name u err os items=() o
+  mapfile -t os < <(owners)
+  if [ "${#os[@]}" -eq 1 ]; then owner=${os[0]}; else
+    for o in "${os[@]}"; do items+=("$o" "$(name_of "$o")"); done
+    owner=$(wt --title "$TITLE · Add a person" --menu "Who is the owner adding this person?" 16 $W 8 "${items[@]}") || return
+  fi
+  opin=$(wt --title "$TITLE · Add a person" --passwordbox "$(name_of "$owner"), type your PIN to add a person." 9 $W) || return
+  name=$(ask_name "The new person's first name?") || return
+  msg "Now $name chooses a PIN." 8
+  pin=$(ask_new_pin) || return
+  if ! u=$(printf '%s\n%s\n%s\n' "$pin" "$owner" "$opin" | sudo -n /usr/local/sbin/eagle-accounts add "$name" 2>/tmp/eagle-greet-err); then
+    err=$(cat /tmp/eagle-greet-err 2>/dev/null); msg "Couldn't add $name.\n\n$err" 12; return
+  fi
+  if whiptail --title "$TITLE" --yesno "$name is added.\n\nSign in as $name now?" 10 $W; then
+    sign_in "$u" "$pin"
+  fi
+}
+
+pick_person() {
+  local items=() p choice pin tries
+  for p in $(people); do items+=("u:$p" "$(name_of "$p")"); done
+  items+=(add "+ Add a person" restart "Restart" shutdown "Shut down")
+  choice=$(wt --title "$TITLE" --menu "$(date '+%A, %B %-d   %-I:%M %p')\n\nWho's using EAGLE-OS?" 18 $W 10 "${items[@]}") || return
+  case "$choice" in
+    add) add_person ;;
+    restart) systemctl reboot ;;
+    shutdown) systemctl poweroff ;;
+    u:*)
+      p=${choice#u:}
+      for tries in 1 2 3; do
+        pin=$(wt --title "$TITLE · $(name_of "$p")" --passwordbox "Type your PIN." 8 $W) || return
+        sign_in "$p" "$pin"
+        [ $? -eq 2 ] || return
+        [ "$tries" -lt 3 ] && msg "That PIN isn't right. Try again." 7
+      done
+      msg "That PIN isn't right. Wait a moment, then try again." 7; sleep 10 ;;
+  esac
+}
+
+while true; do
+  if [ -z "$(people)" ]; then welcome; else pick_person; fi
+done

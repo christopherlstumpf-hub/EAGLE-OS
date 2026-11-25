@@ -127,3 +127,5 @@ python3-gi
 gir1.2-glib-2.0
 libnotify4
 libglib2.0-bin
+# sign-in screen: Wi-Fi and power for the greeter user
+polkitd
