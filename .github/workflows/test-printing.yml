@@ -15,9 +15,12 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
-      - run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cups cups-filters cups-ipp-utils printer-driver-hpcups hplip ghostscript coreutils >/dev/null
+      - run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cups cups-filters cups-ipp-utils printer-driver-hpcups hplip ghostscript coreutils avahi-daemon dbus >/dev/null
       - name: Start CUPS and a simulated printer
         run: |
+          mkdir -p /run/dbus && dbus-daemon --system --fork
+          avahi-daemon -D --no-drop-root --no-chroot || true
+          sleep 2
           mkdir -p /run/cups && (cupsd -f >/tmp/cupsd.log 2>&1 &)
           mkdir -p /tmp/jobs && (ippeveprinter -r off -p 8631 -d /tmp/jobs -k -f application/pdf,image/pwg-raster,image/urf -M HP -m "OfficeJet Pro 9015" "HP OfficeJet Pro 9015" >/tmp/ippeve.log 2>&1 &)
           sleep 5; cat /tmp/ippeve.log | tail -5; lpstat -r
