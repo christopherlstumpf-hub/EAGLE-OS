@@ -165,9 +165,16 @@ async function unlockWith(pin) {
 // Locked: keep the lock in front
 browser.tabs.onActivated.addListener((info) => {
   if (locked && saver && info.tabId !== saver.tabId) browser.tabs.update(saver.tabId, { active: true }).catch(() => {});
+  if (locked && saver) browser.windows.update(saver.windowId, { state: "fullscreen" }).catch(() => {});
+});
+browser.windows.onFocusChanged.addListener(() => {
+  if (locked && saver) browser.windows.update(saver.windowId, { state: "fullscreen" }).catch(() => {});
 });
 browser.tabs.onCreated.addListener((tab) => {
-  if (locked && saver && tab.id !== saver.tabId) browser.tabs.remove(tab.id).catch(() => {});
+  if (locked && saver && tab.id !== saver.tabId) {
+    browser.tabs.remove(tab.id).catch(() => {});
+    browser.windows.update(saver.windowId, { state: "fullscreen" }).catch(() => {});
+  }
 });
 browser.windows.onCreated.addListener((w) => {
   if (locked && saver && w.id !== saver.windowId) browser.windows.remove(w.id).catch(() => {});

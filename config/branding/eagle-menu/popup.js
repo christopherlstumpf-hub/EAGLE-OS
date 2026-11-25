@@ -5,15 +5,10 @@ browser.runtime.sendNativeMessage("eagle", { action: "status" }).then((s) => {
 
 browser.runtime.sendNativeMessage("eagle", { action: "status" }).then((st) => {
   if (st && st.variant !== "lite") document.getElementById("browser-btn").classList.remove("hidden");
-  if (st && st.person) {
-    for (const el of document.querySelectorAll(".person")) el.classList.remove("hidden");
-    const who = document.createElement("small");
-    who.textContent = "Signed in: " + st.name;
-    document.querySelector("header").appendChild(who);
-  }
+  if (st && st.person) for (const el of document.querySelectorAll(".person")) el.classList.remove("hidden");
   if (!st || !st.version) return;
   const v = document.createElement("small");
-  v.textContent = (st.variant === "lite" ? "Lite · " : "") + st.version.replace(/^build\s*/i, "Build ");
+  v.textContent = (st.person ? st.name + " · " : "") + (st.variant === "lite" ? "Lite · " : "") + st.version.replace(/^build\s*/i, "Build ");
   document.querySelector("header").appendChild(v);
 }).catch(() => {});
 

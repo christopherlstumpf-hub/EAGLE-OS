@@ -84,7 +84,7 @@ pick_person() {
   local items=() p choice pin tries
   for p in $(people); do items+=("u:$p" "$(name_of "$p")"); done
   items+=(add "+ Add a person" restart "Restart" shutdown "Shut down")
-  choice=$(wt --title "$TITLE" --menu "$(date '+%A, %B %-d   %-I:%M %p')\n\nWho's using EAGLE-OS?" 18 $W 10 "${items[@]}") || return
+  choice=$(wt --title "$TITLE" --menu "$(date '+%A, %B %-d   %-I:%M %p')\n\nWho's using EAGLE-OS?" 20 $W 8 "${items[@]}") || return
   case "$choice" in
     add) add_person ;;
     restart) systemctl reboot ;;

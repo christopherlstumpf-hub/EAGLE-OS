@@ -4,16 +4,17 @@
 <meta charset="utf-8">
 <style>
   body { margin:0; width:260px; background:#111; color:#d6d6d6; font: 14px "Noto Sans","DejaVu Sans",sans-serif; }
-  header { padding:10px 14px 7px; border-bottom:3px solid var(--orange, #ff7a00); font-weight:800; letter-spacing:.06em; color:#e8e8e8; }
+  header { padding:8px 14px 6px; border-bottom:3px solid var(--orange, #ff7a00); font-weight:800; letter-spacing:.06em; color:#e8e8e8; }
   header small { display:block; font-weight:400; letter-spacing:0; color:#8a8a8a; font-size:11px; margin-top:2px; }
   .list { padding:4px 6px; }
-  button { display:block; width:100%; text-align:left; padding:5px 12px; margin:0; border:0; border-radius:6px;
+  button { display:block; width:100%; text-align:left; padding:4px 12px; margin:0; border:0; border-radius:6px;
            background:transparent; color:#d6d6d6; font:inherit; cursor:pointer; }
   button:hover, button:focus { background:#2a2a2a; color:#fff; outline:none; }
   button.install { background:var(--orange, #ff7a00); color:#000; font-weight:700; margin-top:6px; }
   button.install:hover, button.install:focus { background:var(--orange-hover, #ff9330); color:#000; }
   hr { border:0; border-top:1px solid #333; margin:4px 0; }
   .hidden { display:none; }
+  .pair { display:flex; gap:4px; } .pair button { flex:1; }
   #batt { color:#d6d6d6; font-size:12px; margin-top:6px; }
   #batt.low { color:#ff6b61; font-weight:700; }
 </style>
@@ -38,8 +39,7 @@
     <button data-action="lock-now" class="person hidden">Lock now</button>
     <button data-action="logout" class="person hidden">Switch person</button>
     <button data-action="accounts" class="person hidden">People and PINs</button>
-    <button data-action="restart">Restart</button>
-    <button data-action="shutdown">Shut down</button>
+    <div class="pair"><button data-action="restart">Restart</button><button data-action="shutdown">Shut down</button></div>
   </div>
   <script src="shim.js"></script>
   <script src="theme.js"></script>

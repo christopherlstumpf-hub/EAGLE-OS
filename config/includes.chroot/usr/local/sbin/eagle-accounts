@@ -34,8 +34,8 @@ slug() {
   printf '%s' "$s"
 }
 
-make_person() {  # name pin owner(0/1) welcome(0/1)
-  local name=$1 pin=$2 owner=$3 welcome=$4 u groups g
+make_person() {  # name pin owner(0/1)
+  local name=$1 pin=$2 owner=$3 u groups g
   name=$(printf '%s' "$name" | tr -d ':,\n' | cut -c1-30 | sed 's/^ *//; s/ *$//')
   [ -n "$name" ] || die 1 "Please type a name."
   pin_ok "$pin" || die 1 "The PIN needs 4 to 32 numbers or letters."
@@ -50,10 +50,9 @@ make_person() {  # name pin owner(0/1) welcome(0/1)
   for f in display startup-sound-off; do
     [ -f "/home/kiosk/.config/eagle/$f" ] && install -o "$u" -g "$u" -m 0644 "/home/kiosk/.config/eagle/$f" "/home/$u/.config/eagle/$f"
   done
-  if [ "$welcome" = 1 ]; then
-    touch "/home/$u/.config/eagle/setup-done" "/home/$u/.config/eagle/welcome-google"
-    chown "$u:$u" "/home/$u/.config/eagle/setup-done" "/home/$u/.config/eagle/welcome-google"
-  fi
+  # Wi-Fi is already set up for the whole PC: straight to the browser and their own Google sign-in
+  touch "/home/$u/.config/eagle/setup-done" "/home/$u/.config/eagle/welcome-google"
+  chown "$u:$u" "/home/$u/.config/eagle/setup-done" "/home/$u/.config/eagle/welcome-google"
   chmod 0700 "/home/$u"
   # Real-time antivirus watches each person's Downloads
   if [ -f /etc/clamav/clamd.conf ] && ! grep -qx "OnAccessIncludePath /home/$u/Downloads" /etc/clamav/clamd.conf; then
@@ -70,13 +69,13 @@ case "$cmd" in
     [ "$CALLER" = eaglegreet ] || [ "$CALLER" = root ] || die 3 "Only the sign-in screen can do that."
     [ -z "$(people)" ] || die 3 "EAGLE-OS already has an owner."
     pin=$(read_pin)
-    make_person "${2:-}" "$pin" 1 1
+    make_person "${2:-}" "$pin" 1
     ;;
   add)
     pin=$(read_pin); IFS= read -r owner || owner=""; opin=$(read_pin)
     is_owner "$owner" || die 3 "Only the owner can add a person."
     check_pin "$owner" "$opin" || die 2 "That isn't the owner's PIN."
-    make_person "${2:-}" "$pin" 0 0
+    make_person "${2:-}" "$pin" 0
     ;;
   pin)
     [ "$CALLER" != root ] && id -nG "$CALLER" | tr ' ' '\n' | grep -qx eagle-people || die 3 "Not an EAGLE account."
