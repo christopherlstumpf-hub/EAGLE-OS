@@ -83,6 +83,8 @@ function handleMessage(msg, sender) {
       return syncCalendars(true);
     case "get-battery":
       return Promise.resolve(lastBattery);
+    case "focus-start":
+      return focusStart();
     case "open-notice":
       return openNotice(msg.action || {});
     case "get-settings":

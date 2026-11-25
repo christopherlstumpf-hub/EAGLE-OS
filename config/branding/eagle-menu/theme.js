@@ -67,6 +67,13 @@ function eagleTint(img, accent) {        // pages: <img> -> canvas
     }
   }
   if (typeof browser === "undefined" || !browser.storage) return;
+  // "Back to the EAGLE tab": go to the pinned EAGLE tab and close this one (no second EAGLE tab)
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest && ev.target.closest('a[href="start.html"]');
+    if (!a || location.pathname.endsWith("/start.html")) return;
+    ev.preventDefault();
+    browser.runtime.sendMessage({ type: "focus-start" }).catch(() => {}).finally(() => window.close());
+  });
   browser.storage.local.get({ accent: EAGLE_DEFAULT_ACCENT }).then((s) => apply(s.accent)).catch(() => {});
   browser.storage.onChanged.addListener((ch) => { if (ch.accent) apply(ch.accent.newValue || EAGLE_DEFAULT_ACCENT); });
 })();
