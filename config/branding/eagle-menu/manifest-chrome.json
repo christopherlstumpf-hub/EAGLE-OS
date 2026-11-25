@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "EAGLE-OS menu",
-  "version": "2.0.0",
+  "version": "2.6",
   "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Date and time, Camera, calendar links, Security, Disks, Updates, screen timeout and screensaver",
   "icons": {
     "64": "icon-64.png",
@@ -38,6 +38,16 @@
       ],
       "all_frames": true,
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "alert-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ]
 }

@@ -323,6 +323,8 @@ function renderNotes() {
   box.textContent = "";
   const count = document.getElementById("note-count");
   count.hidden = !list.length; count.textContent = list.length;
+  // the pinned EAGLE tab gets a dot in the tab bar when its title changes
+  document.title = list.length ? "(" + list.length + ") EAGLE-OS" : "EAGLE-OS";
   document.getElementById("clear-all").hidden = list.length < 2;
   if (!list.length) {
     const e = document.createElement("div"); e.className = "empty";
@@ -357,6 +359,8 @@ function renderNotes() {
 }
 async function dismiss(ids) {
   for (const id of ids) dismissed[id] = Date.now();
+  const web = ids.filter((id) => id.startsWith("dn:"));
+  if (web.length) browser.runtime.sendMessage({ type: "web-dismissed", ids: web }).catch(() => {});
   // forget dismissals older than a week
   for (const id in dismissed) if (Date.now() - dismissed[id] > 7 * 86400000) delete dismissed[id];
   renderNotes();

@@ -67,6 +67,7 @@ if [ "$VARIANT" = standard ]; then
   "RestoreOnStartup": 4,
   "RestoreOnStartupURLs": ["chrome-extension://$CHROME_ID/start.html"],
   "DefaultBrowserSettingEnabled": false,
+  "DefaultNotificationsSetting": 1,
   "MetricsReportingEnabled": false,
   "PromotionalTabsEnabled": false,
   "BackgroundModeEnabled": false,

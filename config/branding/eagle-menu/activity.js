@@ -12,6 +12,23 @@
     window.addEventListener(ev, ping, { passive: true, capture: true });
   }
 
+  // alert() from a tab you're not looking at: tell the EAGLE add-on so it lands in the
+  // Notifications panel. The box itself waits inside that tab until you open it.
+  const noteAlert = (text) => {
+    if (window.top !== window) return;
+    try { browser.runtime.sendMessage({ type: "page-alert", text: String(text == null ? "" : text) }).catch(() => {}); } catch (e) { /* ignore */ }
+  };
+  if (typeof exportFunction === "function" && window.wrappedJSObject) {
+    // Firefox: wrap the page's alert() directly
+    try {
+      const page = window.wrappedJSObject, orig = page.alert;
+      exportFunction(function (t) { noteAlert(t); return orig.call(page, t); }, page, { defineAs: "alert" });
+    } catch (e) { /* ignore */ }
+  } else {
+    // Chrome: alert-hook.js runs in the page and sends an event here
+    document.addEventListener("eagle-page-alert", (ev) => noteAlert(ev.detail), true);
+  }
+
   // Low battery warning from the EAGLE add-on: a notice in the corner of the page
   if (window.top !== window) return;
   browser.runtime.onMessage.addListener((msg) => {

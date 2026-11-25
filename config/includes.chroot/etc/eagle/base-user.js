@@ -33,3 +33,10 @@ user_pref("browser.startup.firstrunSkipsHomepage", false);
 user_pref("browser.sessionstore.resume_from_crash", false);
 user_pref("browser.messaging-system.whatsNewPanel.enabled", false);
 user_pref("browser.uitour.enabled", false);
+// Website notifications are allowed and go to the system receiver, which puts them in
+// the EAGLE tab's Notifications panel instead of on top of the screen.
+user_pref("permissions.default.desktop-notification", 1);
+user_pref("alerts.useSystemBackend", true);
+user_pref("dom.webnotifications.requireuserinteraction", false);
+// A pop-up box (alert) in a background tab must not pull you over to that tab.
+user_pref("prompts.tab_modal.focusSwitch", false);

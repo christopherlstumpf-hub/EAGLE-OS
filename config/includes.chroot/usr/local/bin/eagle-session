@@ -13,6 +13,11 @@ CONF="$HOME/.config/eagle"
 # session bus for the browsers' media controls (Mac F7/F8/F9 and media keys)
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 [ -S "$XDG_RUNTIME_DIR/bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+# Website pop-ups (Facebook, Gmail, any tab) go to the EAGLE tab's Notifications panel,
+# never as random boxes on the screen: eagle-notifyd is the session's notification receiver.
+if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && ! pgrep -u "$(id -u)" -f eagle-notifyd >/dev/null; then
+  /usr/local/lib/eagle/eagle-notifyd >/dev/null 2>&1 &
+fi
 REQUEST="$CONF/request"
 APPLOG="$CONF/session.log"   # app messages go here instead of flashing on screen
 RENDERER_FILE="$CONF/renderer"

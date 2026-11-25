@@ -87,6 +87,14 @@ function handleMessage(msg, sender) {
       return focusStart();
     case "open-notice":
       return openNotice(msg.action || {});
+    case "web-dismissed":
+      for (const id of msg.ids || []) {
+        const m = /^dn:(\d+)$/.exec(id);
+        if (m) browser.runtime.sendNativeMessage("eagle", { action: "notify_dismiss", id: +m[1] }).catch(() => {});
+      }
+      return Promise.resolve(true);
+    case "page-alert":
+      return pageAlert(msg, sender);
     case "get-settings":
       return settingsReady.then(() => settings);
     case "get-state":
@@ -251,7 +259,8 @@ async function checkBattery() {
         : "Battery at " + b.percent + "%. Plug in the charger soon.";
       const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
       const warn = { type: "battery-warn", text: msg, critical: level === 5, accent: currentAccent };
-      if (tab) browser.tabs.sendMessage(tab.id, warn).catch(() => {});
+      // only the last-chance 5% warning is shown over the page; the others stay in the panel
+      if (tab && warn.critical) browser.tabs.sendMessage(tab.id, warn).catch(() => {});
       browser.runtime.sendMessage(warn).catch(() => {});   // EAGLE pages (start page, settings)
       setNotice({ id: "battery", kind: "battery", title: "Low battery: " + b.percent + "%", text: msg, action: { type: "none" } });
       break;
@@ -571,6 +580,14 @@ browser.tabs.onUpdated.addListener(async (tabId, info, tab) => {
 
 // Opening a notification
 async function openNotice(a) {
+  if (a.type === "dbus") {
+    // a website pop-up: the browser opens the tab it came from (and the site marks it read)
+    const r = await browser.runtime.sendNativeMessage("eagle", { action: "notify_click", id: a.value }).catch(() => null);
+    removeNotice("dn:" + a.value);
+    if (r && r.ok) return;
+    if (!a.url) return;
+    a = { type: "url", value: a.url };
+  }
   if (a.type === "tab") {
     const t = await browser.tabs.update(a.value, { active: true }).catch(() => null);
     if (t) return;
@@ -586,6 +603,31 @@ async function openNotice(a) {
   }
 }
 
+function webKind(site, title, text) {
+  const all = (site + " " + title + " " + text).toLowerCase();
+  if (/mail|outlook|inbox/.test(all)) return "email";
+  if (/calendar|reminder|meeting|event/.test(all)) return "calendar";
+  return "message";
+}
+
+// alert() boxes from a tab you're not looking at: noted in the panel instead of
+// jumping in front of you. Clicking the note opens that tab, where the box is waiting.
+async function pageAlert(msg, sender) {
+  const tab = sender && sender.tab;
+  if (!tab) return false;
+  if (tab.active) {
+    // the box is in the tab you're looking at: it shows there as usual
+    const w = await browser.windows.get(tab.windowId).catch(() => null);
+    if (!w || w.focused) return false;
+  }
+  let host = "";
+  try { host = new URL(tab.url).hostname.replace(/^www\./, ""); } catch (e) { /* ignore */ }
+  const title = String(msg.text || "").trim().slice(0, 200) || "This page needs your attention";
+  await setNotice({ id: "alert:" + tab.id + ":" + Date.now(), kind: "info", title: host || tab.title || "A tab",
+    text: title, action: { type: "tab", value: tab.id, url: tab.url } });
+  return true;
+}
+
 // From the system (eagle-key / eagle-notify): MacBook F3 = EAGLE tab, F4 = EAGLE menu; notices
 let nativePort = null;
 function listenNative() {
@@ -595,6 +637,14 @@ function listenNative() {
       if (!ev || !ev.type) return;
       if (ev.type === "key" && ev.key === "start") focusStart();
       else if (ev.type === "key" && ev.key === "menu") browser.runtime.sendNativeMessage("eagle", { action: "menu" }).catch(() => {});
+      else if (ev.type === "notice" && ev.kind === "web") {
+        // a website pop-up (Facebook message, Gmail, calendar reminder, ...) caught by eagle-notifyd
+        const site = (ev.site || "").replace(/^www\./, "");
+        setNotice({ id: "dn:" + ev.notifyId, kind: webKind(site, ev.title, ev.text), title: ev.title || site || "Notification",
+          text: [ev.text, site].filter(Boolean).join(" · "),
+          action: ev.clickable ? { type: "dbus", value: ev.notifyId, url: site ? "https://" + (ev.site || site) + "/" : "" } : { type: "none" },
+          time: ev.time || Date.now() });
+      } else if (ev.type === "notice-close") removeNotice("dn:" + ev.notifyId);
       else if (ev.type === "notice") {
         setNotice({ id: "ev:" + ev.kind + ":" + ev.time, kind: ev.kind || "info", title: ev.title || "EAGLE-OS", text: ev.text || "",
           action: ev.screen ? { type: "screen", value: ev.screen } : { type: "none" }, time: ev.time || Date.now() });

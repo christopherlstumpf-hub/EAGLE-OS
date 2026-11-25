@@ -1,0 +1,148 @@
+#!/usr/bin/python3
+"""EAGLE-OS notification receiver.
+
+Firefox and Chrome send their notifications (Facebook, Gmail, calendars, any site) to the
+desktop's notification service. In EAGLE-OS that service is this small program: instead of
+popping up on screen, each notification is passed to the EAGLE tab's Notifications panel
+(through /run/eagle-events, like the other EAGLE notices). Clicking it there tells the browser,
+which opens the site just as if the pop-up had been clicked.
+
+Also offers org.eagle.Notifications.Invoke(id) / Dismiss(id) for the EAGLE add-on.
+"""
+import html
+import json
+import os
+import re
+import time
+
+import gi
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib  # noqa: E402
+
+EVENTS = "/run/eagle-events"
+XML = """
+<node>
+  <interface name="org.freedesktop.Notifications">
+    <method name="GetCapabilities"><arg direction="out" type="as"/></method>
+    <method name="Notify">
+      <arg direction="in" type="s" name="app_name"/>
+      <arg direction="in" type="u" name="replaces_id"/>
+      <arg direction="in" type="s" name="app_icon"/>
+      <arg direction="in" type="s" name="summary"/>
+      <arg direction="in" type="s" name="body"/>
+      <arg direction="in" type="as" name="actions"/>
+      <arg direction="in" type="a{sv}" name="hints"/>
+      <arg direction="in" type="i" name="expire_timeout"/>
+      <arg direction="out" type="u"/>
+    </method>
+    <method name="CloseNotification"><arg direction="in" type="u" name="id"/></method>
+    <method name="GetServerInformation">
+      <arg direction="out" type="s"/><arg direction="out" type="s"/>
+      <arg direction="out" type="s"/><arg direction="out" type="s"/>
+    </method>
+    <signal name="NotificationClosed"><arg type="u"/><arg type="u"/></signal>
+    <signal name="ActionInvoked"><arg type="u"/><arg type="s"/></signal>
+  </interface>
+  <interface name="org.eagle.Notifications">
+    <method name="Invoke"><arg direction="in" type="u" name="id"/></method>
+    <method name="Dismiss"><arg direction="in" type="u" name="id"/></method>
+  </interface>
+</node>
+"""
+PATH = "/org/freedesktop/Notifications"
+state = {"next": int(time.time()) % 100000 * 10 + 1, "conn": None, "actions": {}}
+
+
+def plain(text):
+    text = re.sub(r"<[^>]+>", "", text or "")
+    return html.unescape(text).strip()
+
+
+def write_event(ev):
+    try:
+        n = time.time_ns()
+        with open(f"{EVENTS}/notice-{n}.json", "w") as f:
+            json.dump(ev, f)
+    except OSError:
+        pass
+
+
+def app_label(app, hints):
+    entry = hints.get("desktop-entry")
+    name = str(entry.unpack() if hasattr(entry, "unpack") else (entry or "")) or app or ""
+    low = name.lower()
+    if "firefox" in low:
+        return "Firefox"
+    if "chrome" in low or "chromium" in low:
+        return "Chrome"
+    return name
+
+
+HOST = re.compile(r"(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?", re.I)
+
+
+def site_of(body):
+    # Firefox adds the site on the last line ("www.facebook.com"); Chrome puts it on the first
+    lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
+    if len(lines) > 1 and HOST.fullmatch(lines[0]):
+        return lines[0], "\n".join(lines[1:])
+    if lines and HOST.fullmatch(lines[-1]):
+        return lines[-1], "\n".join(lines[:-1])
+    return "", body
+
+
+def call(conn, sender, path, iface, method, params, inv):
+    if iface == "org.freedesktop.Notifications":
+        if method == "GetCapabilities":
+            inv.return_value(GLib.Variant("(as)", (["body", "actions", "persistence"],)))
+        elif method == "GetServerInformation":
+            inv.return_value(GLib.Variant("(ssss)", ("EAGLE-OS", "Stumpf Technology", "1.0", "1.2")))
+        elif method == "Notify":
+            app, replaces, _icon, summary, body, actions, hints, _timeout = params.unpack()
+            nid = replaces or state["next"]
+            if not replaces:
+                state["next"] += 1
+            state["actions"][nid] = list(actions[0::2])
+            site, text = site_of(plain(body))
+            write_event({"type": "notice", "kind": "web", "notifyId": nid,
+                         "title": plain(summary) or site or app_label(app, hints) or "Notification",
+                         "text": text, "site": site, "app": app_label(app, hints),
+                         "clickable": "default" in actions[0::2] or bool(actions), "time": int(time.time() * 1000)})
+            inv.return_value(GLib.Variant("(u)", (nid,)))
+        elif method == "CloseNotification":
+            nid = params.unpack()[0]
+            write_event({"type": "notice-close", "notifyId": nid})
+            emit(conn, "NotificationClosed", GLib.Variant("(uu)", (nid, 3)))
+            inv.return_value(None)
+    elif iface == "org.eagle.Notifications":
+        nid = params.unpack()[0]
+        if method == "Invoke":
+            acts = state["actions"].get(nid, ["default"])
+            emit(conn, "ActionInvoked", GLib.Variant("(us)", (nid, "default" if "default" in acts or not acts else acts[0])))
+            emit(conn, "NotificationClosed", GLib.Variant("(uu)", (nid, 2)))
+        else:
+            emit(conn, "NotificationClosed", GLib.Variant("(uu)", (nid, 2)))
+        state["actions"].pop(nid, None)
+        inv.return_value(None)
+
+
+def emit(conn, name, params):
+    conn.emit_signal(None, PATH, "org.freedesktop.Notifications", name, params)
+
+
+def on_bus(conn, _name):
+    state["conn"] = conn
+    info = Gio.DBusNodeInfo.new_for_xml(XML)
+    for iface in info.interfaces:
+        conn.register_object(PATH, iface, call, None, None)
+
+
+def main():
+    Gio.bus_own_name(Gio.BusType.SESSION, "org.freedesktop.Notifications",
+                     Gio.BusNameOwnerFlags.REPLACE, on_bus, None, lambda *a: GLib.MainLoop().quit())
+    GLib.MainLoop().run()
+
+
+if __name__ == "__main__":
+    main()

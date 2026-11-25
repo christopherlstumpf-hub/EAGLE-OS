@@ -122,3 +122,8 @@ playerctl
 
 # HP printers: HP's own printer connection (older network and USB HP printers)
 hplip
+# notification receiver (website pop-ups -> Notifications panel)
+python3-gi
+gir1.2-glib-2.0
+libnotify4
+libglib2.0-bin

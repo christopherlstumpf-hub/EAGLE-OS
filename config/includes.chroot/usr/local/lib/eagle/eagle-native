@@ -209,6 +209,21 @@ def main():
     elif action == "camera_retry":
         subprocess.Popen(["sudo", "-n", "/usr/bin/systemctl", "restart", "eagle-facetime-firmware.service"])
         send({"ok": True})
+    elif action in ("notify_click", "notify_dismiss"):
+        # a website pop-up shown in the Notifications panel was clicked / cleared:
+        # tell the browser, so it opens that tab (and the site marks it read)
+        try:
+            nid = int(msg.get("id", 0))
+        except (TypeError, ValueError):
+            nid = 0
+        method = "Invoke" if action == "notify_click" else "Dismiss"
+        ok = False
+        if nid > 0:
+            ok = subprocess.run(["gdbus", "call", "--session", "--dest", "org.freedesktop.Notifications",
+                                 "--object-path", "/org/freedesktop/Notifications",
+                                 "--method", "org.eagle.Notifications." + method, "--", str(nid)],
+                                capture_output=True, timeout=5).returncode == 0
+        send({"ok": ok})
     elif action == "network":
         send(network())
     elif action == "battery":
