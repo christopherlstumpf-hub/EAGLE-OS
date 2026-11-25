@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "EAGLE-OS menu",
-  "version": "2.6",
+  "version": "2.7",
   "description": "EAGLE-OS start page and menu: Wi-Fi, Display, Sound, Date and time, Camera, calendar links, Security, Disks, Updates, screen timeout and screensaver",
   "browser_specific_settings": {
     "gecko": {
@@ -48,6 +48,16 @@
       ],
       "run_at": "document_start",
       "all_frames": true
+    },
+    {
+      "matches": [
+        "https://calendar.google.com/*"
+      ],
+      "js": [
+        "shim.js",
+        "gcal.js"
+      ],
+      "run_at": "document_idle"
     }
   ]
 }

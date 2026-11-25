@@ -52,6 +52,12 @@
   <h1>Calendars <span>on the start page</span></h1>
   <div class="rule"></div>
 
+  <section class="connect">
+    <h2>Google Calendar</h2>
+    <p class="note">One click: EAGLE opens your Google Calendar settings and walks you to the right spot. Sign in to Google if it asks. No links to find or paste.</p>
+    <div class="actions"><button type="button" class="primary" id="gcal">Connect Google Calendar</button></div>
+  </section>
+
   <section>
     <h2>Your calendars</h2>
     <p class="note">Events show on the start page calendar and refresh every 15 minutes. View only: add or change events in Google, Outlook or iCloud. The links are kept on this PC only.</p>
@@ -60,7 +66,7 @@
   </section>
 
   <section>
-    <h2>Add a calendar</h2>
+    <h2>Add another calendar (Outlook, iCloud, Yahoo …)</h2>
     <p class="note">Paste the calendar's private iCal link (it ends in .ics, or starts with webcal://).</p>
     <form id="add">
       <label class="field">Name<input type="text" id="name" maxlength="40" placeholder="Family, Work…" required></label>
@@ -73,7 +79,6 @@
   <section>
     <h2>Where to find the link</h2>
     <div class="how">
-      <div><b>Google Calendar</b><ol><li>On a computer, open calendar.google.com, then the gear → <i>Settings</i>.</li><li>On the left, pick your calendar under <i>Settings for my calendars</i>.</li><li>Under <i>Integrate calendar</i>, copy <i>Secret address in iCal format</i>.</li></ol></div>
       <div><b>Outlook / Microsoft 365</b><ol><li>In Outlook on the web: gear → <i>Calendar</i> → <i>Shared calendars</i>.</li><li>Under <i>Publish a calendar</i>, choose the calendar and <i>Can view all details</i>, then <i>Publish</i>.</li><li>Copy the <i>ICS</i> link.</li></ol></div>
       <div><b>iCloud (Apple)</b><ol><li>On iCloud.com or an iPhone, open Calendar and tap the share icon next to the calendar.</li><li>Turn on <i>Public Calendar</i>.</li><li>Copy the link (it starts with webcal://).</li></ol></div>
       <div><b>Yahoo and others</b><ol><li>Look for <i>Share</i>, <i>Export</i> or <i>Subscribe</i> in the calendar's settings.</li><li>Copy the iCal / ICS link.</li></ol></div>

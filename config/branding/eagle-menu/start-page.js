@@ -177,9 +177,13 @@ function renderEvents() {
   box.textContent = "";
   if (!calCals.length) {
     const a = document.createElement("a");
-    a.className = "cal-connect"; a.href = "calendars.html"; a.target = "_blank";
-    a.textContent = "+ Show your Google, Outlook or iCloud calendar here";
-    box.appendChild(a);
+    a.className = "cal-connect"; a.href = "#";
+    a.textContent = "+ Connect Google Calendar";
+    a.addEventListener("click", (ev) => { ev.preventDefault(); browser.runtime.sendMessage({ type: "gcal-start" }).catch(() => {}); });
+    const o = document.createElement("a");
+    o.className = "cal-connect"; o.href = "calendars.html"; o.target = "_blank";
+    o.textContent = "+ Outlook, iCloud or another calendar";
+    box.append(a, o);
     return;
   }
   const day = cal.selected || new Date();

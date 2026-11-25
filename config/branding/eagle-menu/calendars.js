@@ -107,6 +107,8 @@ $("add").addEventListener("submit", async (e) => {
   } finally { $("add-btn").disabled = false; }
 });
 
+$("gcal").addEventListener("click", () => browser.runtime.sendMessage({ type: "gcal-start" }).catch(() => {}));
+
 $("refresh").addEventListener("click", async () => {
   $("refresh").disabled = true;
   try { await browser.runtime.sendMessage({ type: "cal-refresh" }); } catch (e) { /* ignore */ }

@@ -95,6 +95,13 @@ function handleMessage(msg, sender) {
       return Promise.resolve(true);
     case "page-alert":
       return pageAlert(msg, sender);
+    case "gcal-start": return gcalStart();
+    case "gcal-state": return gcalActive().then((active) => ({ active }));
+    case "gcal-cancel": return gcalSet(null).then(() => true);
+    case "gcal-found": return gcalFound(msg);
+    case "gcal-finish":
+      if (sender && sender.tab) browser.tabs.remove(sender.tab.id).catch(() => {});
+      return focusStart().then(() => true, () => true);
     case "get-settings":
       return settingsReady.then(() => settings);
     case "get-state":
@@ -561,6 +568,7 @@ async function checkGmail() {
     const x = await r.text();
     const m = /<fullcount>(\d+)<\/fullcount>/.exec(x);
     if (!m) return;                                    // not signed in
+    offerGcal();                                       // signed in to Google: offer the calendar
     const n = +m[1];
     if (!n) { gmailCount = 0; removeNotice("gmail"); return; }
     const e = /<entry>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<author>[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(x);
@@ -604,6 +612,7 @@ browser.tabs.onUpdated.addListener(async (tabId, info, tab) => {
 
 // Opening a notification
 async function openNotice(a) {
+  if (a.type === "gcal") { removeNotice("gcal-offer"); return gcalStart(); }
   if (a.type === "dbus") {
     // a website pop-up: the browser opens the tab it came from (and the site marks it read)
     const r = await browser.runtime.sendNativeMessage("eagle", { action: "notify_click", id: a.value }).catch(() => null);
@@ -632,6 +641,60 @@ function webKind(site, title, text) {
   if (/mail|outlook|inbox/.test(all)) return "email";
   if (/calendar|reminder|meeting|event/.test(all)) return "calendar";
   return "message";
+}
+
+// ---------- Connect Google Calendar: no hunting for the secret address ----------
+// "Connect Google Calendar" opens Google Calendar's settings; gcal.js (on that site) guides the
+// way and sends back the calendar's secret iCal address, which is checked and added here.
+const GCAL_COLORS = ["#ff7a00", "#4ea1ff", "#7fb069", "#c77dff", "#ffd166", "#ef6f6c"];
+async function gcalSet(v) {
+  try { await browser.storage.session.set({ gcalConnect: v }); } catch (e) { self.__gcal = v; }
+}
+async function gcalActive() {
+  let v = self.__gcal;
+  try { v = (await browser.storage.session.get({ gcalConnect: null })).gcalConnect; } catch (e) { /* use memory */ }
+  return !!(v && Date.now() - v.since < 30 * 60000);
+}
+async function gcalStart() {
+  await gcalSet({ since: Date.now() });
+  await browser.tabs.create({ url: "https://calendar.google.com/calendar/u/0/r/settings", active: true });
+  return true;
+}
+// Once you're signed in to Google, the Notifications panel offers (once) to show your
+// Google Calendar on the EAGLE tab. One click starts Connect Google Calendar.
+async function offerGcal() {
+  const s = await browser.storage.local.get({ calendars: [], gcalOffered: false });
+  const has = (s.calendars || []).some((c) => /calendar\.google\.com/.test(c.url));
+  if (has) { removeNotice("gcal-offer"); return; }
+  if (s.gcalOffered) return;
+  await browser.storage.local.set({ gcalOffered: true });
+  setNotice({ id: "gcal-offer", kind: "calendar", title: "Show your Google Calendar here?",
+    text: "You're signed in to Google. Click to connect your calendar (about 10 seconds).", action: { type: "gcal" } });
+}
+
+async function gcalFound(msg) {
+  if (!(await gcalActive())) return { ok: false, error: "the connect step timed out; start it again" };
+  const url = String(msg.url || "");
+  if (!/^https:\/\/calendar\.google\.com\/calendar\/ical\/[^/]+\/private-[0-9a-f]+\/basic\.ics$/i.test(url)) return { ok: false, error: "not a calendar address" };
+  const cals = (await browser.storage.local.get({ calendars: [] })).calendars || [];
+  if (cals.some((c) => c.url === url)) { await gcalSet(null); return { ok: true, already: true }; }
+  if (cals.length >= 8) return { ok: false, error: "the EAGLE tab already shows 8 calendars" };
+  try {
+    const r = await fetch(url, { cache: "no-store", credentials: "omit" });
+    if (!r.ok) return { ok: false, error: "Google answered " + r.status };
+    if (!/BEGIN:VCALENDAR/i.test(await r.text())) return { ok: false, error: "not a calendar" };
+  } catch (e) { return { ok: false, error: "couldn't reach Google. Is the PC online?" }; }
+  let who = "";
+  try { who = decodeURIComponent(url.split("/ical/")[1].split("/")[0]); } catch (e) { /* ignore */ }
+  const google = cals.filter((c) => /calendar\.google\.com/.test(c.url)).length;
+  let name = "Google Calendar";
+  if (google) name = /@group\.calendar\.google\.com$/.test(who) ? (String(msg.title || "").trim() || "Google · shared") : "Google · " + who.split("@")[0];
+  const used = new Set(cals.map((c) => c.color));
+  const color = GCAL_COLORS.find((x) => !used.has(x)) || GCAL_COLORS[0];
+  await browser.storage.local.set({ calendars: [...cals, { id: "c" + Date.now().toString(36), name: name.slice(0, 40), url, color }] });
+  await gcalSet(null);
+  removeNotice("gcal-offer");
+  return { ok: true };
 }
 
 // alert() boxes from a tab you're not looking at: noted in the panel instead of

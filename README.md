@@ -144,7 +144,13 @@ On laptops the battery level shows under the clock on the start page (with time 
 
 ## Calendar links (Google, Outlook, iCloud)
 
-The month calendar on the start page can show your own calendars. Click **Calendars** under it, paste the calendar's private iCal link (Google: Settings → your calendar → *Secret address in iCal format*; Outlook: Settings → Calendar → Shared calendars → Publish → ICS; iCloud: share the calendar as a Public Calendar), pick a colour and add it. Days with events get coloured dots; click a day to see its events, with "Coming up" below. Up to 8 calendars, refreshed every 15 minutes. View only: add or change events in Google, Outlook or iCloud. The links are kept on this PC only.
+The month calendar on the start page can show your own calendars.
+
+**Google Calendar takes one click:** click **+ Connect Google Calendar** under the calendar (or the "Show your Google Calendar here?" notification that appears once you've signed in to Google). EAGLE opens your Google Calendar settings, goes to your calendar, outlines *Secret address in iCal format* in orange and tells you what to click. Press the copy button (or the eye) and EAGLE picks the address up, checks it and adds the calendar by itself. Then **Back to the EAGLE tab** closes Google's page. Nothing to find or paste.
+
+**Outlook, iCloud and others:** click **Calendars** under the calendar and paste the calendar's private iCal link (Outlook: Settings → Calendar → Shared calendars → Publish → ICS; iCloud: share the calendar as a Public Calendar), pick a colour and add it.
+
+Days with events get coloured dots; click a day to see its events, with "Coming up" below. Up to 8 calendars, refreshed every 15 minutes. View only: add or change events in Google, Outlook or iCloud. The links are kept on this PC only.
 
 ## Spotify and streaming
 
