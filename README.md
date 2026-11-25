@@ -109,7 +109,7 @@ The **EAGLE tab** is always the first tab: pinned, it can't be closed or moved (
 - the **month calendar** on the right, with today's events and what's coming up.
 "by Stumpf Technology" is at the bottom and the version (for example *EAGLE-OS · Build 48*) in the lower right corner. The default time zone is US Eastern; change it under **Date and time**.
 
-**Link tabs:** the sites sit right after the EAGLE tab as small locked tabs showing just their icon, in A–Z order: Google, Gmail, YouTube, Maps, News and Weather always, plus your own (Spotify and Facebook to start). Like the EAGLE tab, they can't be closed, unpinned or moved (closed anyway, they come straight back in their place), and any new tab opens to their right. Each loads its site only when you click its tab. Add or remove your own in the orange E menu → **Link tabs**. When the screen timeout returns to the EAGLE tab, the other tabs close and the link tabs go back to their sites' start.
+**Link tabs:** the sites sit right after the EAGLE tab as small locked tabs showing just their icon, in A–Z order: Google, Gmail, YouTube, Maps, News and Weather always, plus your own: to start Spotify, Facebook and Google's Calendar, Docs, Drive, Meet and Photos, which share your one Google sign-in so they open straight to your account (remove any in E menu → Link tabs). Like the EAGLE tab, they can't be closed, unpinned or moved (closed anyway, they come straight back in their place), and any new tab opens to their right. Each loads its site only when you click its tab. Add or remove your own in the orange E menu → **Link tabs**. When the screen timeout returns to the EAGLE tab, the other tabs close and the link tabs go back to their sites' start.
 
 ## MacBook function keys
 

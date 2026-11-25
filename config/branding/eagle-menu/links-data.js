@@ -9,10 +9,18 @@ const EAGLE_FIXED_LINKS = [
   { title: "News", url: "https://news.google.com/" },
   { title: "Weather", url: "https://weather.com/" },
 ];
+// Google's other apps share the one Google sign-in, so they open straight to your account
+const EAGLE_GOOGLE_APPS = [
+  { title: "Calendar", url: "https://calendar.google.com/" },
+  { title: "Docs", url: "https://docs.google.com/document/" },
+  { title: "Drive", url: "https://drive.google.com/" },
+  { title: "Meet", url: "https://meet.google.com/" },
+  { title: "Photos", url: "https://photos.google.com/" },
+];
 const EAGLE_STARTER_LINKS = [
   { title: "Spotify", url: "https://open.spotify.com/" },
   { title: "Facebook", url: "https://www.facebook.com/" },
-];
+].concat(EAGLE_GOOGLE_APPS);
 const EAGLE_MAX_LINKS = 18;
 
 // Your own links (older EAGLE versions also kept "action" buttons like Wi-Fi here: those are dropped)
@@ -25,6 +33,12 @@ async function eagleLoadLinks() {
       mine = mine.filter((l) => l && l.url && /^https?:/i.test(l.url));
       if (!mine.some((l) => /facebook\.com/i.test(l.url))) mine.push({ title: "Facebook", url: "https://www.facebook.com/" });
       await browser.storage.local.set({ links: mine, linksVersion: 3 });
+    }
+    if (Array.isArray(s.links) && s.linksVersion < 4) {
+      // build 59: add Calendar, Docs, Drive, Meet and Photos (removable in Link tabs)
+      const host = (u) => { try { return new URL(u).hostname; } catch (e) { return ""; } };
+      for (const g of EAGLE_GOOGLE_APPS) if (!mine.some((l) => host(l.url) === host(g.url))) mine.push(g);
+      await browser.storage.local.set({ links: mine, linksVersion: 4 });
     }
   } catch (e) { mine = EAGLE_STARTER_LINKS.slice(); }
   return mine.filter((l) => l && l.url && /^https?:/i.test(l.url));
