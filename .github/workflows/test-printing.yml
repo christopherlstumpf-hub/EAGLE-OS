@@ -1,0 +1,32 @@
+# Checks EAGLE's printer helper end to end against a simulated network printer (ippeveprinter):
+# add by IP address, list, default, print the test page. Nothing is published.
+name: Test printing
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["config/includes.chroot/usr/local/sbin/eagle-printers", ".github/workflows/test-printing.yml", "config/includes.chroot/usr/share/eagle/printer-test.pdf"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cups cups-filters cups-ipp-utils printer-driver-hpcups hplip ghostscript coreutils >/dev/null
+      - name: Start CUPS and a simulated printer
+        run: |
+          mkdir -p /run/cups && (cupsd -f >/tmp/cupsd.log 2>&1 &)
+          mkdir -p /tmp/jobs && (ippeveprinter -r off -p 8631 -d /tmp/jobs -k -f application/pdf,image/pwg-raster,image/urf -M HP -m "OfficeJet Pro 9015" "HP OfficeJet Pro 9015" >/tmp/ippeve.log 2>&1 &)
+          sleep 5; cat /tmp/ippeve.log | tail -5; lpstat -r
+      - name: Add, list, test page
+        run: |
+          install -m755 config/includes.chroot/usr/share/eagle/printer-test.pdf /tmp/ 2>/dev/null; mkdir -p /usr/share/eagle && cp config/includes.chroot/usr/share/eagle/printer-test.pdf /usr/share/eagle/
+          P=config/includes.chroot/usr/local/sbin/eagle-printers
+          echo "== add-ip"; bash $P add-ip 127.0.0.1:8631 "HP OfficeJet" ; echo "exit $?"
+          echo "== list"; bash $P list
+          echo "== test"; bash $P test HP_OfficeJet; echo "exit $?"
+          echo "== jobs received by the printer"; ls -la /tmp/jobs; find /tmp/jobs -type f | head
+          echo "== cups log"; tail -20 /var/log/cups/error_log 2>/dev/null || true

@@ -119,3 +119,6 @@ xdg-utils
 
 # Media keys (play/pause, next, previous) for the browser
 playerctl
+
+# HP printers: HP's own printer connection (older network and USB HP printers)
+hplip

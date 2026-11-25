@@ -7,6 +7,7 @@
 #   eagle-printers default NAME | remove NAME | test NAME
 set -u
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export LC_ALL=C          # CUPS messages in English, so they can be read below
 
 clean_name() { local n; n=$(printf '%s' "$1" | tr -c 'A-Za-z0-9_-' '_' | sed 's/__*/_/g; s/^_//; s/_$//'); printf '%s' "${n:0:40}"; }
 exists() { lpstat -p "$1" >/dev/null 2>&1; }
@@ -15,7 +16,8 @@ make_default_if_first() { lpstat -d 2>/dev/null | grep -q "system default destin
 case "${1:-}" in
   list)
     def=$(lpstat -d 2>/dev/null | sed -n 's/^system default destination: //p')
-    lpstat -v 2>/dev/null | while read -r _ name addr; do
+    # lines look like "device for HP_OfficeJet_Pro: ipp://192.168.1.5/ipp/print"
+    lpstat -v 2>/dev/null | while read -r _ _ name addr; do
       name=${name%:}
       state=$(lpstat -p "$name" 2>/dev/null | head -1 | sed -E 's/^printer [^ ]+ (is )?//; s/\.  .*//')
       printf '%s|%s|%s|%s\n' "$name" "$state" "$addr" "$([ "$name" = "$def" ] && echo yes || echo no)"
@@ -28,8 +30,8 @@ case "${1:-}" in
       printf '%s|%s (network)\n' "$uri" "$desc"
     done
     # USB printers
-    timeout 20 lpinfo -l --include-schemes usb -v 2>/dev/null | awk '
-      /^Device: uri = /{uri=$4} /make-and-model = /{sub(/.*make-and-model = /,""); if (uri!="") {print uri "|" $0 " (USB)"; uri=""}}' ;;
+    timeout 20 lpinfo -l --include-schemes usb,hp -v 2>/dev/null | awk '
+      /^Device: uri = /{uri=$4} /make-and-model = /{sub(/.*make-and-model = /,""); if (uri!="") {print uri "|" $0 (uri ~ /^hp:\/net/ ? " (HP, network)" : " (USB)"); uri=""}}' ;;
 
   add)
     uri=${2:?address}; name=$(clean_name "${3:-}")
@@ -38,11 +40,11 @@ case "${1:-}" in
     if lpadmin -p "$name" -E -v "$uri" -m everywhere 2>/dev/null; then :
     else
       # older USB printers: pick the best matching driver
-      id=$(lpinfo -l --include-schemes usb -v 2>/dev/null | awk -v u="$uri" '$0 ~ "uri = "u"$" {f=1} f && /device-id = /{sub(/.*device-id = /,""); print; exit}')
+      id=$(lpinfo -l --include-schemes usb,hp -v 2>/dev/null | awk -v u="$uri" 'index($0, "uri = " u) {f=1} f && /device-id = /{sub(/.*device-id = /,""); print; exit}')
       drv=""
       [ -n "$id" ] && drv=$(lpinfo --device-id "$id" -m 2>/dev/null | awk 'NR==1{print $1}')
       if [ -z "$drv" ]; then
-        mm=$(lpinfo -l --include-schemes usb -v 2>/dev/null | awk -v u="$uri" '$0 ~ "uri = "u"$" {f=1} f && /make-and-model = /{sub(/.*make-and-model = /,""); print; exit}')
+        mm=$(lpinfo -l --include-schemes usb,hp -v 2>/dev/null | awk -v u="$uri" 'index($0, "uri = " u) {f=1} f && /make-and-model = /{sub(/.*make-and-model = /,""); print; exit}')
         [ -n "$mm" ] && drv=$(lpinfo --make-and-model "$mm" -m 2>/dev/null | awk 'NR==1{print $1}')
       fi
       [ -n "$drv" ] || { echo "No driver found for this printer." >&2; exit 2; }
@@ -58,10 +60,41 @@ case "${1:-}" in
         make_default_if_first "$name"; echo "$name"; exit 0
       fi
     done
-    echo "The printer at $ip didn't answer as a driverless (AirPrint / IPP Everywhere) printer." >&2; exit 3 ;;
+    # older HP printers: HP's own connection (HPLIP) with the matching HP driver
+    if command -v hp-makeuri >/dev/null; then
+      hpuri=$(timeout 30 hp-makeuri -c "$ip" 2>/dev/null | grep -m1 '^hp:/')
+      if [ -n "$hpuri" ]; then
+        model=$(printf '%s' "$hpuri" | sed -E 's|^hp:/net/([^?]+).*|\1|; s|_| |g')
+        drv=$(lpinfo --make-and-model "$model" -m 2>/dev/null | grep -i 'hpcups\|hpijs\|hplip' | awk 'NR==1{print $1}')
+        [ -n "$drv" ] || drv=$(lpinfo --make-and-model "$model" -m 2>/dev/null | awk 'NR==1{print $1}')
+        if [ -n "$drv" ] && lpadmin -p "$name" -E -v "$hpuri" -m "$drv" 2>/dev/null; then
+          make_default_if_first "$name"; echo "$name"; exit 0
+        fi
+      fi
+    fi
+    echo "The printer at $ip didn't answer as an AirPrint / IPP Everywhere printer or as an HP printer." >&2; exit 3 ;;
 
   default) exists "${2:-}" && lpadmin -d "$2" ;;
   remove)  exists "${2:-}" && lpadmin -x "$2" ;;
-  test)    exists "${2:-}" && lp -d "$2" -t "EAGLE-OS test page" /usr/share/cups/data/testprint >/dev/null ;;
+  test)
+    # prints the EAGLE-OS test page, then reports what happened (up to 45 seconds)
+    name=${2:-}
+    exists "$name" || { echo "That printer isn't set up." >&2; exit 2; }
+    cupsenable "$name" 2>/dev/null; cupsaccept "$name" 2>/dev/null     # clear a stopped queue
+    out=$(lp -d "$name" -t "EAGLE-OS test page" /usr/share/eagle/printer-test.pdf 2>&1) || { echo "$out" >&2; exit 3; }
+    job=$(printf '%s' "$out" | sed -n 's/^request id is \([^ ]*\).*/\1/p')
+    reason() { lpstat -l -p "$name" 2>/dev/null | sed -n '2,3p' | sed 's/^[[:space:]]*//' | grep -v '^$' | head -2; }
+    for _ in $(seq 1 45); do
+      sleep 1
+      if ! lpstat -W not-completed -o "$name" 2>/dev/null | grep -q "^$job "; then
+        if lpstat -W completed -o "$name" 2>/dev/null | grep -q "^$job "; then
+          echo "The test page was sent to the printer."; exit 0
+        fi
+        echo "The printer didn't take the test page." >&2; reason >&2; exit 4
+      fi
+    done
+    echo "The test page is still waiting to print." >&2
+    reason >&2
+    exit 5 ;;
   *) echo "usage: eagle-printers list|find|add ADDRESS [NAME]|add-ip IP [NAME]|default NAME|remove NAME|test NAME" >&2; exit 2 ;;
 esac

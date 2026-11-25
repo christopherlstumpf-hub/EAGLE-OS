@@ -432,7 +432,14 @@ printers_menu() {
         while IFS='|' read -r name _ _ _; do opts+=("$name" "${name//_/ }"); done <<< "$list"
         pick=$(whiptail --title "$T" --menu "Which printer?" 18 $W 8 "${opts[@]}" 3>&1 1>&2 2>&3) || continue
         case "$choice" in
-          test)    PR test "$pick" && whiptail --title "$T" --msgbox "Test page sent to ${pick//_/ }." 8 $W ;;
+          test)
+            local res
+            whiptail --title "$T" --infobox "Printing a test page on ${pick//_/ }…\n\nWaiting for the printer (up to 45 seconds)." 9 $W
+            if res=$(PR test "$pick" 2>&1); then
+              whiptail --title "$T" --msgbox "$res\n\nThe page shows EAGLE-OS, colour bars and text sizes." 10 $W
+            else
+              whiptail --title "$T" --msgbox "$res\n\nCheck the printer is on, has paper and is on the same network (or its USB cable is in). For HP printers, also try removing it and adding it again with Find printers." 15 $W
+            fi ;;
           default) PR default "$pick" ;;
           remove)  whiptail --title "$T" --yesno "Remove ${pick//_/ }?" 8 $W && PR remove "$pick" ;;
         esac ;;
