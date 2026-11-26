@@ -15,8 +15,10 @@
   @media (max-width:899px) { aside { display:none !important; } }
 
   /* ---- main: logo, analog clock, notifications ---- */
-  main { min-height:0; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:18px; padding:16px 24px 40px; }
+  /* the clock and notifications sit in the middle; the logo is centred in the space above them */
+  main { min-height:0; overflow:hidden; display:grid; grid-template-rows:minmax(0,1fr) auto minmax(0,1fr);
+    justify-items:center; padding:16px 24px 40px; }
+  .brand { align-self:center; display:flex; flex-direction:column; align-items:center; gap:18px; padding:4px 0 20px; }
   .logo { width:min(340px, 50vw); max-height:11vh; object-fit:contain; }
   .bar { width:min(220px, 34vw); height:4px; background:var(--orange); margin-top:-10px; }
   .row { display:flex; gap:28px; align-items:stretch; justify-content:center; width:100%; max-width:960px; min-height:0; flex:0 1 auto; }
@@ -126,8 +128,10 @@
 </head>
 <body>
 <main>
-  <img data-tint class="logo" src="logo.png" alt="EAGLE-OS">
-  <div class="bar"></div>
+  <div class="brand">
+    <img data-tint class="logo" src="logo.png" alt="EAGLE-OS">
+    <div class="bar"></div>
+  </div>
   <div class="row">
     <section class="clock-card" aria-label="Clock">
       <svg id="analog" viewBox="0 0 200 200" role="img" aria-label="Clock"></svg>
