@@ -448,17 +448,72 @@ function ensureTabs(create, activateStart) {   // one at a time
   tabsChain = tabsChain.then(() => doEnsureTabs(create, activateStart)).catch(() => {});
   return tabsChain;
 }
+// A fresh browser start (power-on, or after a settings screen): the browser brings back the
+// old pinned tabs, which EAGLE can't tell apart from its own. Clear them once and lay out one
+// clean set. storage.session is empty only right after the browser starts.
+let freshChecked = false;
+async function isFreshStart() {
+  if (freshChecked) return false;
+  freshChecked = true;
+  try {
+    const s = await browser.storage.session.get({ tabsSession: false });
+    if (s.tabsSession) return false;
+    await browser.storage.session.set({ tabsSession: true });
+  } catch (e) { /* no session storage: treat as fresh */ }
+  return true;
+}
+
+// The set lives in one window only: the one with the EAGLE tab (or the biggest one)
+async function mainWindow() {
+  const wins = await browser.windows.getAll({ populate: true, windowTypes: ["normal"] }).catch(() => []);
+  if (!wins.length) return null;
+  return wins.find((w) => w.tabs.some((t) => t.id === startTabId))
+    || wins.find((w) => w.tabs.some((t) => tabUrl(t).startsWith(START_URL)))
+    || wins.slice().sort((a, b) => b.tabs.length - a.tabs.length)[0];
+}
+
+// Firefox brings pinned tabs back after every restart. Each EAGLE tab carries a marker that
+// survives that (sessions tab values), so the restored ones are reused instead of duplicated.
+const TABMARK = !!(browser.sessions && browser.sessions.setTabValue);
+function markTab(id, value) { if (TABMARK) browser.sessions.setTabValue(id, "eagle", value).catch(() => {}); }
+async function tabMark(t) {
+  if (!TABMARK) return null;
+  try { return (await browser.sessions.getTabValue(t.id, "eagle")) || null; } catch (e) { return null; }
+}
+// A tab coming back after a restart (or a second copy): tidy up a moment later
+browser.tabs.onCreated.addListener((tab) => { if (tab.pinned) setTimeout(fixTabsSoon, 800); });
+
 async function doEnsureTabs(create, activateStart) {
   await tabsReady;
-  let win;
-  try { win = await browser.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }); } catch (e) { return; }
+  const fresh = await isFreshStart();
+  const win = await mainWindow();
   if (!win || win.type !== "normal" || !win.tabs) return;
-  const tabs = win.tabs;
+  let tabs = win.tabs;
   suppress();
-  // EAGLE tab: first and pinned
+  // EAGLE tab: first and pinned, and only one of it anywhere
+  const marks = new Map();
+  for (const t of tabs) { const m = await tabMark(t); if (m) marks.set(t.id, m); }
   let st = tabs.find((t) => t.id === startTabId) || tabs.find((t) => tabUrl(t).startsWith(START_URL));
+  const allTabs = await browser.tabs.query({}).catch(() => tabs);
+  const drop = allTabs.filter((t) => tabUrl(t).startsWith(START_URL) && (!st || t.id !== st.id));
+  if (fresh) {
+    // pinned tabs from before the restart that EAGLE can't recognise: one clean set is made below
+    linkTabs = {};
+    for (const t of tabs) {
+      if (!t.pinned || (st && t.id === st.id) || drop.includes(t)) continue;
+      const m = marks.get(t.id) || "";
+      if (!m.startsWith("link:") && !placeholderTarget(tabUrl(t))) drop.push(t);
+    }
+  }
+  if (drop.length) {
+    for (const t of drop) removingLinks.add(t.id);
+    await browser.tabs.remove(drop.map((t) => t.id)).catch(() => {});
+    const gone = new Set(drop.map((t) => t.id));
+    tabs = tabs.filter((t) => !gone.has(t.id));
+  }
   if (!st) st = await browser.tabs.create({ windowId: win.id, url: START_URL, index: 0, pinned: true, active: !!activateStart || tabs.length === 0 });
   startTabId = st.id;
+  markTab(st.id, "start");
   if (!st.pinned) await browser.tabs.update(st.id, { pinned: true }).catch(() => {});
   if (st.index !== 0) await browser.tabs.move(st.id, { index: 0 }).catch(() => {});
 
@@ -467,7 +522,22 @@ async function doEnsureTabs(create, activateStart) {
   const wanted = new Set(links.map((l) => l.url));
   const ids = new Set(tabs.map((t) => t.id));
   for (const u of Object.keys(linkTabs)) if (!ids.has(linkTabs[u])) delete linkTabs[u];
-  for (const t of tabs) { const u = placeholderTarget(tabUrl(t)); if (u && linkTabs[u] == null) linkTabs[u] = t.id; }
+  const mapped = new Set(Object.values(linkTabs));
+  const extra = [];
+  for (const t of tabs) {
+    const m = marks.get(t.id) || "";
+    const u = placeholderTarget(tabUrl(t)) || (m.startsWith("link:") ? m.slice(5) : null);
+    if (!u || mapped.has(t.id)) continue;
+    if (linkTabs[u] == null) { linkTabs[u] = t.id; mapped.add(t.id); } else extra.push(t.id);   // a second copy
+  }
+  // link tabs that ended up in another window (a second window was opened): close them
+  for (const t of allTabs) {
+    if (t.windowId !== win.id && t.pinned && (placeholderTarget(tabUrl(t)) || String(await tabMark(t) || "").startsWith("link:"))) extra.push(t.id);
+  }
+  if (extra.length) {
+    for (const id of extra) removingLinks.add(id);
+    await browser.tabs.remove(extra).catch(() => {});
+  }
   for (const u of Object.keys(linkTabs)) {
     if (wanted.has(u)) continue;
     const t = tabs.find((x) => x.id === linkTabs[u]);
@@ -482,6 +552,7 @@ async function doEnsureTabs(create, activateStart) {
       const t = await browser.tabs.create({ windowId: win.id, url: linkTabUrl(l), index, pinned: true, active: false }).catch(() => null);
       if (!t) continue;
       id = linkTabs[l.url] = t.id;
+      markTab(id, "link:" + l.url);
       if (relinkActive === l.url) { relinkActive = null; browser.tabs.update(id, { active: true }).catch(() => {}); }
     } else {
       const t = tabs.find((x) => x.id === id);
