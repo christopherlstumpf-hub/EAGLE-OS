@@ -84,8 +84,8 @@ From the USB stick EAGLE-OS starts straight up, with no account or PIN, so tryin
 - **First start: the welcome setup.** Your first name, a PIN (4 or more numbers or letters, typed twice), and Wi-Fi if it isn't connected yet. You're the **owner**. EAGLE then opens Google sign-in: sign in once and Gmail, Calendar, Drive, Docs, Photos, Meet and YouTube are all ready.
 - **Every start after that: the sign-in screen.** Pick your name, type your PIN. *+ Add a person* adds someone (needs the owner's PIN); *Restart* and *Shut down* are there too.
 - **Each person has their own space:** their own Google sign-in, tabs, calendars, colours, notifications and Downloads.
-- **Locked after the screensaver.** Coming back from the screensaver asks for your PIN (after a minute with nobody typing, the pictures come back). **Switch person** on the lock goes back to the sign-in screen. E menu → **Lock now** locks straight away.
-- **E menu → People and PINs:** change your PIN, switch person; the owner adds and removes people (removing someone deletes their tabs, sign-ins and Downloads).
+- **Locked after the screensaver.** Coming back from the screensaver asks for your PIN (after a minute with nobody typing, the pictures come back). **Switch person** on the lock goes back to the sign-in screen. E menu → **Lock now** locks straight away; to switch person without locking, use E menu → **People and PINs** → Switch person.
+- **E menu → People and PINs:** change your PIN, switch person (the only place it's listed, besides the lock screen); the owner adds and removes people (removing someone deletes their tabs, sign-ins and Downloads).
 
 ## The EAGLE menu
 Click the orange **E** button in Firefox's toolbar, or close Firefox, to open the EAGLE menu:
@@ -136,7 +136,7 @@ Orange E menu → **Web browser** → **Install Google Chrome**. EAGLE downloads
 
 Orange E menu → **Tools**:
 - **Internet speed test**: download, upload, ping and jitter for the current Wi-Fi or network, with your internet provider and a plain-English verdict (uses Cloudflare's speed test servers; one test uses about 100–300 MB).
-- **Camera test**, **Printers**, **Disks and partitions** (GParted) and **Virus scan**.
+- **Camera test** and **Disks and partitions** (GParted). Printers and the virus scan are in the E menu itself (**Printers**, **Security**), so nothing is listed twice.
 
 ## Printers
 
