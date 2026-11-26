@@ -493,7 +493,11 @@ async function doEnsureTabs(create, activateStart) {
   // EAGLE tab: first and pinned, and only one of it anywhere
   const marks = new Map();
   for (const t of tabs) { const m = await tabMark(t); if (m) marks.set(t.id, m); }
-  let st = tabs.find((t) => t.id === startTabId) || tabs.find((t) => tabUrl(t).startsWith(START_URL));
+  // keep the EAGLE tab you're looking at (after a restart the browser opens one as its home page
+  // next to the restored one)
+  let st = tabs.find((t) => t.id === startTabId)
+    || tabs.find((t) => t.active && tabUrl(t).startsWith(START_URL))
+    || tabs.find((t) => tabUrl(t).startsWith(START_URL));
   const allTabs = await browser.tabs.query({}).catch(() => tabs);
   const drop = allTabs.filter((t) => tabUrl(t).startsWith(START_URL) && (!st || t.id !== st.id));
   if (fresh) {
@@ -514,6 +518,8 @@ async function doEnsureTabs(create, activateStart) {
   if (!st) st = await browser.tabs.create({ windowId: win.id, url: START_URL, index: 0, pinned: true, active: !!activateStart || tabs.length === 0 });
   startTabId = st.id;
   markTab(st.id, "start");
+  if (fresh) activateStart = true;                 // after a restart: the EAGLE tab in front
+  if (activateStart && !st.active) await browser.tabs.update(st.id, { active: true }).catch(() => {});
   if (!st.pinned) await browser.tabs.update(st.id, { pinned: true }).catch(() => {});
   if (st.index !== 0) await browser.tabs.move(st.id, { index: 0 }).catch(() => {});
 
