@@ -8,6 +8,10 @@ const color = q.get("c") || "#ff7a00";
 document.title = name;
 document.getElementById("msg").textContent = "Opening " + name + "…";
 
+// a Google search (Weather) would get the same "G" as the Google tab: use a sun instead
+let isSearch = false;
+try { const u0 = new URL(url); isSearch = /(^|\.)google\./.test(u0.hostname) && u0.pathname === "/search"; } catch (e) { /* ignore */ }
+
 // letter icon for the tab
 try {
   const c = document.createElement("canvas");
@@ -18,7 +22,7 @@ try {
   x.fillStyle = "#000";
   x.font = "bold 38px 'Noto Sans', 'DejaVu Sans', sans-serif";
   x.textAlign = "center"; x.textBaseline = "middle";
-  x.fillText(name.trim().charAt(0).toUpperCase() || "•", 32, 35);
+  x.fillText(isSearch ? "☀" : (name.trim().charAt(0).toUpperCase() || "•"), 32, 35);
   const link = document.createElement("link");
   link.rel = "icon"; link.href = c.toDataURL();
   document.head.appendChild(link);
@@ -26,6 +30,7 @@ try {
 
 // the tabs are pinned (icon only), so show the site's own icon as soon as it can be fetched
 try {
+  if (isSearch) throw new Error("keep the sun");
   const host = new URL(url).hostname;
   const src = "https://www.google.com/s2/favicons?sz=64&domain=" + encodeURIComponent(host);
   const img = new Image();

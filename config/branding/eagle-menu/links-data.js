@@ -16,7 +16,7 @@ const EAGLE_FIXED_LINKS = [
   { title: "YouTube", url: "https://www.youtube.com/" },
   { title: "Maps", url: "https://maps.google.com/" },
   { title: "News", url: "https://news.google.com/" },
-  { title: "Weather", url: "https://weather.com/" },
+  { title: "Weather", url: "https://www.google.com/search?q=weather" },   // Google Weather
 ].concat(EAGLE_GOOGLE_APPS);
 const EAGLE_STARTER_LINKS = [
   { title: "Spotify", url: "https://open.spotify.com/" },
