@@ -35,7 +35,8 @@ cd "$WORK"
 
 # Version shown on the start page (lower right) and in the EAGLE menu: "build 38" from GitHub, "dev" otherwise
 mkdir -p config/includes.chroot/etc/eagle
-printf 'VERSION="%s"\nDATE="%s"\n' "${EAGLE_VERSION:-dev}" "$(date -u +%Y-%m-%d)" > config/includes.chroot/etc/eagle/version
+EAGLE_VERSION=$(printf "%s" "${EAGLE_VERSION:-dev}" | sed "s/^build-/build /")   # tag "build-61" shows as "build 61"
+printf 'VERSION="%s"\nDATE="%s"\n' "$EAGLE_VERSION" "$(date -u +%Y-%m-%d)" > config/includes.chroot/etc/eagle/version
 
 # EAGLE-OS add-on (start page, camera test, toolbar menu), with this edition's logo
 ADDON="$WORK/build-addon"
