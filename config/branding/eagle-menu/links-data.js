@@ -1,14 +1,6 @@
 // EAGLE-OS link tabs: the sites that open as tabs next to the EAGLE tab.
-// Six fixed ones, then your own (E menu > Link tabs). Shared by the background and the Link tabs page.
+// Eleven fixed ones, then your own (E menu > Link tabs). Shared by the background and the Link tabs page.
 "use strict";
-const EAGLE_FIXED_LINKS = [
-  { title: "Google", url: "https://www.google.com/" },
-  { title: "Gmail", url: "https://mail.google.com/" },
-  { title: "YouTube", url: "https://www.youtube.com/" },
-  { title: "Maps", url: "https://maps.google.com/" },
-  { title: "News", url: "https://news.google.com/" },
-  { title: "Weather", url: "https://weather.com/" },
-];
 // Google's other apps share the one Google sign-in, so they open straight to your account
 const EAGLE_GOOGLE_APPS = [
   { title: "Calendar", url: "https://calendar.google.com/" },
@@ -17,10 +9,19 @@ const EAGLE_GOOGLE_APPS = [
   { title: "Meet", url: "https://meet.google.com/" },
   { title: "Photos", url: "https://photos.google.com/" },
 ];
+// Always there, locked: can't be closed, moved or removed
+const EAGLE_FIXED_LINKS = [
+  { title: "Google", url: "https://www.google.com/" },
+  { title: "Gmail", url: "https://mail.google.com/" },
+  { title: "YouTube", url: "https://www.youtube.com/" },
+  { title: "Maps", url: "https://maps.google.com/" },
+  { title: "News", url: "https://news.google.com/" },
+  { title: "Weather", url: "https://weather.com/" },
+].concat(EAGLE_GOOGLE_APPS);
 const EAGLE_STARTER_LINKS = [
   { title: "Spotify", url: "https://open.spotify.com/" },
   { title: "Facebook", url: "https://www.facebook.com/" },
-].concat(EAGLE_GOOGLE_APPS);
+];
 const EAGLE_MAX_LINKS = 18;
 
 // Your own links (older EAGLE versions also kept "action" buttons like Wi-Fi here: those are dropped)
@@ -34,11 +35,12 @@ async function eagleLoadLinks() {
       if (!mine.some((l) => /facebook\.com/i.test(l.url))) mine.push({ title: "Facebook", url: "https://www.facebook.com/" });
       await browser.storage.local.set({ links: mine, linksVersion: 3 });
     }
-    if (Array.isArray(s.links) && s.linksVersion < 4) {
-      // build 59: add Calendar, Docs, Drive, Meet and Photos (removable in Link tabs)
+    if (Array.isArray(s.links) && s.linksVersion < 5) {
+      // build 61: Calendar, Docs, Drive, Meet and Photos are fixed now; drop them from your own list
       const host = (u) => { try { return new URL(u).hostname; } catch (e) { return ""; } };
-      for (const g of EAGLE_GOOGLE_APPS) if (!mine.some((l) => host(l.url) === host(g.url))) mine.push(g);
-      await browser.storage.local.set({ links: mine, linksVersion: 4 });
+      const fixed = new Set(EAGLE_GOOGLE_APPS.map((g) => host(g.url)));
+      mine = mine.filter((l) => !fixed.has(host(l.url)));
+      await browser.storage.local.set({ links: mine, linksVersion: 5 });
     }
   } catch (e) { mine = EAGLE_STARTER_LINKS.slice(); }
   return mine.filter((l) => l && l.url && /^https?:/i.test(l.url));
